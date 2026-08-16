@@ -1,0 +1,3 @@
+- insert:
+    - id: chat-process-visibility
+      name: dsh-chat-process-visibility

@@ -1,0 +1,34 @@
+diff --git a/lib/index.js b/lib/index.js
+index f8f6e2d043fae5fbaaef2bb86005dba4f12a44f5..c1d8b9eff5220e42386784f377fbe6a84edd2605 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -548,10 +548,11 @@ const DEFAULT_TOOL_CALL_TIMEOUT_MS = 6e4;
+ /** Valid `serverName`, kept below the public tool-name budget. */
+ const SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
+ /**
+-* Live `serverName` reservations per app, keyed off `ctx.root` (multiple apps
+-* in one process — tests — must not see each other's names). A duplicate
+-* namespace is a configuration error surfaced at plugin load, never silent
+-* shadowing.
++* Live `serverName` reservations per registration owner. Agent-scoped clients
++* reserve against their inherited `ctx.agent`; unscoped clients reserve against
++* `ctx.root`. This matches ToolRuntime visibility: different agents may expose
++* the same public MCP namespace, while duplicates inside one agent or the global
++* layer remain configuration errors.
+ */
+ const activeServerNames = /* @__PURE__ */ new WeakMap();
+ const Reconnect = z.object({
+@@ -590,10 +591,11 @@ const Config = z.union([z.object({
+ async function apply(ctx, config) {
+ 	const reconnect = resolveReconnectPolicy(config.reconnect, `mcp-client(${config.serverName}): reconnect`);
+ 	ctx.effect(() => {
+-		let names = activeServerNames.get(ctx.root);
++		const reservationOwner = ctx.agent ?? ctx.root;
++		let names = activeServerNames.get(reservationOwner);
+ 		if (!names) {
+ 			names = /* @__PURE__ */ new Set();
+-			activeServerNames.set(ctx.root, names);
++			activeServerNames.set(reservationOwner, names);
+ 		}
+ 		if (names.has(config.serverName)) throw new Error(`mcp-client: serverName "${config.serverName}" is already in use by another mcp-client instance — pick a unique serverName in cordis.yml`);
+ 		names.add(config.serverName);

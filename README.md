@@ -1,19 +1,40 @@
-## [deepseek-harness-web](https://github.com/chenshutian9610/deepseek-harness-web)
+# DeepSeek Harness Monorepo
 
-在官方的基础上
-- 增加局域网支持 (伴随一个简单的登录页面和移动端 UI 适配)
-- 去除 DeepseekWebSearch
-- 去除 openai/anthropic 以外的供应商支持
-- 去除 sandbox (gpt 会经常因为 sandbox 而报错)
+DeepSeek Harness Web 定制版及相关插件的统一代码仓库。各项目保留原有包管理器、锁文件和独立构建方式。
 
-## [deepseek-harness-plugin-skill](https://github.com/chenshutian9610/deepseek-harness-plugin-skill)
+| 项目 | 路径 | 说明 |
+| --- | --- | --- |
+| `deepseek-harness-web` | [`packages/deepseek-harness-web`](packages/deepseek-harness-web) | 支持局域网登录与移动端适配的 Web 定制版 |
+| `dsh-chat-process-visibility` | [`packages/deepseek-harness-chat-plugin`](packages/deepseek-harness-chat-plugin) | 按会话控制过程详情显隐 |
+| `dsh-project-mcp` | [`packages/deepseek-harness-mcp-plugin`](packages/deepseek-harness-mcp-plugin) | 加载项目级 `.mcp.json` |
+| `dsh-web-mermaid` | [`packages/deepseek-harness-mermaid-plugin`](packages/deepseek-harness-mermaid-plugin) | 在 Web UI 中渲染 Mermaid 代码块 |
+| `dsh-web-terminal` | [`packages/deepseek-harness-terminal-plugin`](packages/deepseek-harness-terminal-plugin) | 在 Web UI 中提供交互式终端 |
 
-基于 deepseek-ai/deepseek-harness@0.1.0-rc.5 的插件文档生成的技能, 用于开发 dsh 插件
+## Web 定制版
 
-#### [deepseek-harness-mermaid-plugin](https://github.com/chenshutian9610/deepseek-harness-plugin-mermaid-plugin)
+在官方版本基础上：
+
+- 增加局域网支持，包含登录页面和移动端 UI 适配
+- 去除 DeepSeek Web Search
+- 去除 OpenAI、Anthropic 以外的供应商支持
+- 去除 sandbox，避免模型频繁因 sandbox 报错
+
+## 插件预览
+
+### Mermaid
 
 ![](img/mermaid.png)
 
-#### [deepseek-harness-terminal-plugin](https://github.com/chenshutian9610/deepseek-harness-terminal-plugin)
+### Terminal
 
 ![](img/terminal.png)
+
+### Chat
+
+![](img/chat.png)
+
+## 开发技能
+
+插件开发可使用独立的 [`deepseek-harness-plugin-skill`](skills/deepseek-harness-plugin-skill)。
+
+进入对应项目目录后，使用该项目 README 中记录的安装、检查和构建命令。Web 项目使用 npm，插件项目使用 pnpm。

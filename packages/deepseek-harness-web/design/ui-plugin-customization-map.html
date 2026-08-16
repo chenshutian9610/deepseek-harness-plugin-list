@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DeepSeek Harness Web UI 插件定制区域</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f5f7;
+      color: #191b20;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header {
+      padding: 28px 32px 22px;
+      color: white;
+      background: linear-gradient(135deg, #17191f 0%, #272b35 100%);
+    }
+    header h1 { margin: 0 0 8px; font-size: 28px; }
+    header p { margin: 0; color: #c7ccd8; line-height: 1.6; }
+    main { width: min(1500px, 100%); margin: 0 auto; padding: 26px 24px 42px; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .metric {
+      padding: 16px 18px;
+      border: 1px solid #e0e2e8;
+      border-radius: 12px;
+      background: white;
+      box-shadow: 0 4px 18px rgb(0 0 0 / 5%);
+    }
+    .metric strong { display: block; font-size: 25px; color: #d81920; }
+    .metric span { color: #626875; font-size: 13px; }
+    .stage-card {
+      padding: 18px;
+      border: 1px solid #dedfe5;
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 8px 28px rgb(0 0 0 / 7%);
+    }
+    .stage-title { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+    .stage-title h2 { margin: 0; font-size: 18px; }
+    .key { display: inline-flex; align-items: center; gap: 6px; color: #636976; font-size: 13px; }
+    .key::before { width: 19px; height: 13px; border: 3px solid #e00000; border-radius: 2px; content: ""; }
+    .viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1280 / 633;
+      overflow: hidden;
+      border: 1px solid #bbbfc8;
+      border-radius: 10px;
+      background: #f6f7f9;
+    }
+    .viewport img { display: block; width: 100%; height: 100%; }
+    .box {
+      position: absolute;
+      border: clamp(2px, .25vw, 4px) solid #e00000;
+      border-radius: 7px;
+      background: rgb(255 0 0 / 2%);
+      box-shadow: 0 0 0 1px rgb(255 255 255 / 75%), inset 0 0 0 1px rgb(255 255 255 / 65%);
+      pointer-events: none;
+    }
+    .box > span {
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      transform: translateY(-100%);
+      padding: 4px 7px;
+      border-radius: 5px 5px 0 0;
+      background: #e00000;
+      color: white;
+      font-size: clamp(8px, .86vw, 13px);
+      font-weight: 750;
+      line-height: 1.15;
+      white-space: nowrap;
+      text-shadow: 0 1px 1px rgb(0 0 0 / 25%);
+    }
+    .box.label-inside > span { top: 0; transform: none; border-radius: 0 0 5px 0; }
+    .sidebar { left: .2%; top: .5%; width: 19.3%; height: 98.8%; }
+    .sidebar-actions { left: 1.2%; top: 1.8%; width: 16.7%; height: 7.7%; }
+    .workspace-list { left: .8%; top: 11.2%; width: 18%; height: 78.5%; }
+    .sidebar-footer { left: .8%; top: 91%; width: 18%; height: 7.2%; }
+    .conversation { left: 19.8%; top: .5%; width: 70.2%; height: 98.8%; }
+    .header-actions { left: 47.3%; top: 1.4%; width: 40.4%; height: 8.3%; }
+    .hero { left: 26.4%; top: 33%; width: 55%; height: 18%; }
+    .input-dock { left: 30.3%; top: 42.9%; width: 48.8%; height: 6.8%; }
+    .composer { left: 30%; top: 48.3%; width: 49.4%; height: 21.4%; }
+    .composer-tools { left: 31%; top: 60%; width: 47.4%; height: 8.5%; }
+    .details { left: 90.2%; top: .5%; width: 9.6%; height: 98.8%; }
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .group {
+      padding: 17px 18px;
+      border: 1px solid #e0e2e7;
+      border-radius: 12px;
+      background: white;
+    }
+    .group h3 { margin: 0 0 9px; font-size: 15px; }
+    .group p { margin: 0 0 8px; color: #676d78; font-size: 13px; line-height: 1.55; }
+    code {
+      display: inline-block;
+      margin: 2px 3px 2px 0;
+      padding: 3px 6px;
+      border-radius: 5px;
+      background: #f0f1f4;
+      color: #272a31;
+      font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .warning { border-color: #f1bcbc; background: #fff8f8; }
+    .warning h3 { color: #b40000; }
+    footer { margin-top: 18px; color: #707681; font-size: 12px; line-height: 1.6; }
+    @media (max-width: 900px) {
+      header { padding: 22px 20px; }
+      main { padding: 18px 12px 32px; }
+      .summary { grid-template-columns: repeat(2, 1fr); }
+      .legend-grid { grid-template-columns: 1fr; }
+      .stage-card { padding: 8px; }
+      .stage-title { padding: 5px 4px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>DeepSeek Harness Web UI 插件定制区域</h1>
+  <p>红框表示当前页面中可通过 Client Plugin Slot 注册、叠加或替换的界面区域。框内还可继续细分到消息、工具卡片、设置项等更小的扩展点。</p>
+</header>
+<main>
+  <section class="summary" aria-label="扩展点统计">
+    <div class="metric"><strong>42</strong><span>全部插件化 UI Slot</span></div>
+    <div class="metric"><strong>17</strong><span>可安全叠加的 list Slot</span></div>
+    <div class="metric"><strong>6</strong><span>消息、工具和命令渲染入口</span></div>
+    <div class="metric"><strong>9</strong><span>设置界面扩展点</span></div>
+  </section>
+
+  <section class="stage-card">
+    <div class="stage-title">
+      <h2>当前网页标注图</h2>
+      <span class="key">红框区域可由插件定制</span>
+    </div>
+    <div class="viewport" role="img" aria-label="DeepSeek Harness 网页截图，红框标出了可由插件修改的界面区域">
+      <img src="./ui-plugin-current.png" alt="DeepSeek Harness 当前网页截图">
+      <div class="box sidebar label-inside"><span>① 整个侧边栏 sidebar</span></div>
+      <div class="box sidebar-actions label-inside"><span>② 侧栏头部控制</span></div>
+      <div class="box workspace-list label-inside"><span>③ Workspace / 会话区域</span></div>
+      <div class="box sidebar-footer label-inside"><span>④ 设置与 Footer Action</span></div>
+      <div class="box conversation label-inside"><span>⑤ 整个对话区 conversation</span></div>
+      <div class="box header-actions label-inside"><span>⑥ 会话头部与操作按钮</span></div>
+      <div class="box hero label-inside"><span>⑦ 新会话 Hero 选择器</span></div>
+      <div class="box input-dock label-inside"><span>⑧ 输入框上方 Dock</span></div>
+      <div class="box composer label-inside"><span>⑨ Composer / 输入框</span></div>
+      <div class="box composer-tools label-inside"><span>⑩ 输入工具栏、模型和发送区</span></div>
+      <div class="box details label-inside"><span>⑪ 详情栏 details</span></div>
+    </div>
+  </section>
+
+  <section class="legend-grid" aria-label="区域和 Slot 对照">
+    <article class="group">
+      <h3>①–④ 侧边栏</h3>
+      <p>可替换整个侧栏，也可以只增加底部操作、替换 Workspace 浏览器或定制设置入口。</p>
+      <code>sidebar</code><code>sidebar.workspaces</code><code>sidebar.settings</code><code>sidebar.footer.action</code><code>sidebar.workspaces.directoryFlow</code>
+    </article>
+    <article class="group">
+      <h3>⑤–⑥ 会话框架与头部</h3>
+      <p>可增加会话页签、标题旁按钮、右侧实用工具，也能接管整个会话主体。</p>
+      <code>conversation</code><code>conversation.session</code><code>conversation.session.header</code><code>conversation.session.header.actions</code><code>conversation.session.header.utilities</code><code>conversation.view</code>
+    </article>
+    <article class="group">
+      <h3>消息流内部</h3>
+      <p>当前截图是空白会话，因此这些位置尚未显示；有消息后可定制消息节点、命令卡片、轮次尾部和消息操作。</p>
+      <code>conversation.chat.node</code><code>conversation.chat.commandview</code><code>conversation.chat.turnTail</code><code>conversation.chat.assistant-actions</code>
+    </article>
+    <article class="group">
+      <h3>⑦ 新会话 Hero</h3>
+      <p>可替换 Workspace 选择、Agent Preset 选择及目录选择流程。</p>
+      <code>conversation.hero.workspace</code><code>conversation.hero.agentPreset</code><code>conversation.hero.workspace.directoryFlow</code>
+    </article>
+    <article class="group">
+      <h3>⑧–⑩ 输入区</h3>
+      <p>可以添加独立状态行、小按钮、菜单浮层、模型选择器，或者按条件接管整个 Composer。</p>
+      <code>conversation.composer</code><code>conversation.composer.bar</code><code>conversation.input.overlay</code><code>conversation.input.dock</code><code>conversation.composer.dock</code><code>conversation.input.left</code><code>conversation.input.right</code><code>conversation.input.plan</code><code>conversation.input.model</code>
+    </article>
+    <article class="group">
+      <h3>工具调用与 Cordis UI</h3>
+      <p>有工具调用后，可按工具名称替换卡片；动态 Cordis 插件可在自己的运行卡片中加入交互 UI。</p>
+      <code>tool.call.toolview</code><code>conversation.details.tool</code><code>tool.view.cordis</code>
+    </article>
+    <article class="group">
+      <h3>④ 设置面板内部</h3>
+      <p>打开设置后还能继续添加完整页面、General 设置项、插件 Tab、插件配置卡和 Onboarding。</p>
+      <code>settings.trigger</code><code>settings.header</code><code>settings.action</code><code>settings.close</code><code>settings.section</code><code>settings.general.item</code><code>settings.plugins.tab</code><code>settings.plugin.item</code><code>settings.onboarding</code>
+    </article>
+    <article class="group">
+      <h3>全页面浮层</h3>
+      <p>适合 Toast、状态提示、浮动面板和全局徽标，是扩展整个页面最安全的位置。</p>
+      <code>shell.overlay</code>
+    </article>
+    <article class="group warning">
+      <h3>替换风险</h3>
+      <p><code>single</code> Slot 通常已有官方组件。注册会替换原区域，并可能连带移除它声明的子 Slot。尤其不要注册 <code>root</code>；全局浮层应使用 <code>shell.overlay</code>。</p>
+    </article>
+  </section>
+
+  <footer>
+    统计依据：当前项目安装的 @deepseek-ai/dsh-client-* 0.1.0-rc.6 类型声明。红框是可视区域归类，不代表只有 11 个 Slot；多个细粒度 Slot 会共享同一个屏幕区域。
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,140 @@
+[data-composer-seat]:has(.dsh-web-terminal-panel) {
+  container-type: inline-size;
+}
+
+.dsh-web-terminal-toggle {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.dsh-web-terminal-toggle:hover,
+.dsh-web-terminal-toggle:focus-visible,
+.dsh-web-terminal-toggle[data-open] {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.dsh-web-terminal-panel {
+  box-sizing: border-box;
+  order: 1;
+  flex: none;
+  width: calc(100cqw - 13px);
+  height: min(42vh, 440px);
+  align-self: center;
+  margin: 6px 0 10px 7px;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 14px;
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-shadow-lv3);
+  color: var(--dsw-alias-label-primary);
+}
+
+.dsh-web-terminal-panel[data-open] {
+  display: flex;
+}
+
+[data-phase='hero'] > [data-conversation-scroll]:has(.dsh-web-terminal-panel[data-open]) {
+  justify-content: flex-end;
+}
+
+[data-phase='hero'] div:has(> [data-slot='conversation.input.dock'] > .dsh-web-terminal-panel[data-open]) {
+  padding-bottom: 0;
+}
+
+.dsh-web-terminal-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 0 10px 0 14px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-1);
+  font-size: 12px;
+}
+
+.dsh-web-terminal-title,
+.dsh-web-terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dsh-web-terminal-title > span {
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsh-web-terminal-title > .dsh-web-terminal-status {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.dsh-web-terminal-actions kbd {
+  color: var(--dsw-alias-label-tertiary);
+  font: inherit;
+}
+
+.dsh-web-terminal-actions button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  font: 20px/1 inherit;
+}
+
+.dsh-web-terminal-actions button:hover,
+.dsh-web-terminal-actions button:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.dsh-web-terminal-viewport {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+  background: var(--dsw-alias-bg-base);
+}
+
+.dsh-web-terminal-viewport .xterm {
+  height: 100%;
+}
+
+/* xterm 6 keeps this legacy scroll layer black unless the embed overrides it. */
+.dsh-web-terminal-viewport .xterm-viewport {
+  background: #fff;
+}
+
+body[data-ds-dark-theme] .dsh-web-terminal-viewport .xterm-viewport {
+  background: #151517;
+}
+
+.dsh-web-terminal-viewport .xterm-viewport,
+.dsh-web-terminal-viewport .xterm-screen {
+  width: 100% !important;
+}
+
+@media (max-width: 640px) {
+  .dsh-web-terminal-panel {
+    height: 50vh;
+  }
+
+  .dsh-web-terminal-actions kbd {
+    display: none;
+  }
+}
