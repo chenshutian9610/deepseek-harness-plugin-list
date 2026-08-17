@@ -74,7 +74,13 @@ export class TerminalController implements ObservableSnapshot<TerminalSnapshot> 
     }
     this.input = this.terminal.onData(sendInput)
     this.terminal.attachCustomKeyEventHandler((event) => {
-      if (event.type !== 'keydown' || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return true
+      if (event.type !== 'keydown') return true
+      if (['Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+        event.preventDefault()
+        event.stopPropagation()
+        return true
+      }
+      if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return true
       const data = event.key === 'ArrowLeft' ? '\x1bb' : event.key === 'ArrowRight' ? '\x1bf' : undefined
       if (data === undefined) return true
       event.preventDefault()

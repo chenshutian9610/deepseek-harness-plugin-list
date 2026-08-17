@@ -8,7 +8,7 @@
 - 在 `dsh-web` 的 `conversation.input.dock` 注册 xterm.js 终端，只占当前 Session 的中间对话栏；CSS `order: 1` 将它放到同一 composer flex 栈的输入框之后。
 - 终端位于输入框下方并参与正常布局；打开时输入框向上移动，不再覆盖页面。空白 Session 的 Hero 状态会在终端打开时改为底部对齐，并清除 Hero 原有的 32px foot，使其与已有对话时的终端贴底样式一致。终端面板在 Hero／Active 阶段都以 composer seat 为宽度容器，边框距左侧和底部均为 10px、距右侧为 3px，高度保持一致。
 - 会话标题栏最右侧通过官方 `conversation.session.header.utilities` slot 显示 12px 的“Terminal”按钮；点击可打开／关闭终端，按钮通过 `aria-pressed` 同步状态。
-- `Cmd+J` / `Ctrl+J` 仍可切换显示并聚焦；`Alt+←` / `Alt+→` 会发送 shell 通用的 `Esc+b` / `Esc+f`，按单词移动光标，避免 xterm 默认修饰箭头序列在 shell 中显示为 `;3D` / `;3C`。
+- `Cmd+J` / `Ctrl+J` 仍可切换显示并聚焦；`Alt+←` / `Alt+→` 会发送 shell 通用的 `Esc+b` / `Esc+f`，按单词移动光标，避免 xterm 默认修饰箭头序列在 shell 中显示为 `;3D` / `;3C`。终端内按 `Home` / `End`，以及 macOS 的 `Fn+←` / `Fn+→` / `Fn+↑` / `Fn+↓`，不再带动外部对话窗口滚动。
 - 通过官方 `theme` 服务读取网页实际解析后的 `light`／`dark` 配色，并监听 `theme/change`；xterm 背景、前景、光标与选区会立即同步，浅色背景为白色。输入位置使用 2px 竖线光标，聚焦时闪烁，失焦时仍保持可见。
 - 当前 Session 对应一个页面本地终端连接；切换 Session 会关闭旧 PTY。
 - Host 通过 `/web-terminal` WebSocket 和 `ctx.subprocess.spawnTerminal()` 启动交互式 PTY。
@@ -44,9 +44,12 @@ socket.send(body, (error) => { if (error) socket.terminate() })
 
 `100.64.0.0/10` 源码修改后若直接部署旧 `lib/` 或旧 tarball，Host 仍会按旧网段拒绝。`lib/` 被 `.gitignore` 忽略，不会随源码提交自动更新；部署前必须重新 build／pack 并重装插件、重启 Host。
 
+终端启用 `screenReaderMode` 后，xterm 不会默认取消未带修饰键的键盘事件。macOS 的 `Fn+←` / `Fn+→` 会映射为 `Home` / `End`，`Fn+↑` / `Fn+↓` 会映射为 `PageUp` / `PageDown`，均可能继续触发外部页面滚动。现由 xterm 的自定义键盘处理器取消这四个导航键的浏览器默认行为并阻止冒泡，同时返回 `true` 保留 xterm 自身的按键处理。
+
 ## 验证结果
 
 通过：
+- `Home` / `End` / `PageUp` / `PageDown` 页面滚动修复后执行 `pnpm typecheck` 与 `pnpm build`：Host／Client TypeScript 检查及构建通过，`lib/client.js` 已更新。
 - 局域网访问修复后执行 `pnpm test`：2 个协议测试通过，包含 `192.168.x.x` 与 `100.66.x.x` 同源 Host／客户端放行；公网地址、域名、跨源连接仍拒绝。
 - 局域网访问修复后执行 `pnpm typecheck`：Host／Client TypeScript 检查通过。
 - 重新执行 `pnpm build` 与 `pnpm pack --pack-destination /tmp`，并从 tarball 内检查 `package/lib/index.js`，确认包含 `100.64.0.0/10`。
