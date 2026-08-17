@@ -48,6 +48,9 @@ export class TerminalController implements ObservableSnapshot<TerminalSnapshot> 
   private readonly listeners = new Set<() => void>()
   private readonly terminal = new Terminal({
     cursorBlink: true,
+    cursorInactiveStyle: 'bar',
+    cursorStyle: 'bar',
+    cursorWidth: 2,
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
     fontSize: 13,
     lineHeight: 1.2,

@@ -9,7 +9,7 @@
 - 终端位于输入框下方并参与正常布局；打开时输入框向上移动，不再覆盖页面。空白 Session 的 Hero 状态会在终端打开时改为底部对齐，并清除 Hero 原有的 32px foot，使其与已有对话时的终端贴底样式一致。终端面板在 Hero／Active 阶段都以 composer seat 为宽度容器，边框距左侧和底部均为 10px、距右侧为 3px，高度保持一致。
 - 会话标题栏最右侧通过官方 `conversation.session.header.utilities` slot 显示 12px 的“Terminal”按钮；点击可打开／关闭终端，按钮通过 `aria-pressed` 同步状态。
 - `Cmd+J` / `Ctrl+J` 仍可切换显示并聚焦。
-- 通过官方 `theme` 服务读取网页实际解析后的 `light`／`dark` 配色，并监听 `theme/change`；xterm 背景、前景、光标与选区会立即同步，浅色背景为白色。
+- 通过官方 `theme` 服务读取网页实际解析后的 `light`／`dark` 配色，并监听 `theme/change`；xterm 背景、前景、光标与选区会立即同步，浅色背景为白色。输入位置使用 2px 竖线光标，聚焦时闪烁，失焦时仍保持可见。
 - 当前 Session 对应一个页面本地终端连接；切换 Session 会关闭旧 PTY。
 - Host 通过 `/web-terminal` WebSocket 和 `ctx.subprocess.spawnTerminal()` 启动交互式 PTY。
 - PTY 遵循当前 Session 的 sandbox policy；sandbox 模式变更会在终端打开期间被拒绝。
