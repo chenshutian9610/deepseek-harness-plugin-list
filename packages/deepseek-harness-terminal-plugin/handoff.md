@@ -8,7 +8,7 @@
 - 在 `dsh-web` 的 `conversation.input.dock` 注册 xterm.js 终端，只占当前 Session 的中间对话栏；CSS `order: 1` 将它放到同一 composer flex 栈的输入框之后。
 - 终端位于输入框下方并参与正常布局；打开时输入框向上移动，不再覆盖页面。空白 Session 的 Hero 状态会在终端打开时改为底部对齐，并清除 Hero 原有的 32px foot，使其与已有对话时的终端贴底样式一致。终端面板在 Hero／Active 阶段都以 composer seat 为宽度容器，边框距左侧和底部均为 10px、距右侧为 3px，高度保持一致。
 - 会话标题栏最右侧通过官方 `conversation.session.header.utilities` slot 显示 12px 的“Terminal”按钮；点击可打开／关闭终端，按钮通过 `aria-pressed` 同步状态。
-- `Cmd+J` / `Ctrl+J` 仍可切换显示并聚焦。
+- `Cmd+J` / `Ctrl+J` 仍可切换显示并聚焦；`Alt+←` / `Alt+→` 会发送 shell 通用的 `Esc+b` / `Esc+f`，按单词移动光标，避免 xterm 默认修饰箭头序列在 shell 中显示为 `;3D` / `;3C`。
 - 通过官方 `theme` 服务读取网页实际解析后的 `light`／`dark` 配色，并监听 `theme/change`；xterm 背景、前景、光标与选区会立即同步，浅色背景为白色。输入位置使用 2px 竖线光标，聚焦时闪烁，失焦时仍保持可见。
 - 当前 Session 对应一个页面本地终端连接；切换 Session 会关闭旧 PTY。
 - Host 通过 `/web-terminal` WebSocket 和 `ctx.subprocess.spawnTerminal()` 启动交互式 PTY。
@@ -71,6 +71,7 @@ socket.send(body, (error) => { if (error) socket.terminate() })
 - 当前预览日志：`/tmp/dsh-web-terminal-dock.log`
 - 当前 tarball：`/tmp/dsh-web-terminal-0.1.0.tgz`（包含主题同步及 `100.64.0.0/10` 放行）
 - 当前 tarball 安装 profile：`/tmp/dsh-web-terminal-theme-artifact-home`
+- 共享 `~/.dsh/profiles/web` 已重新链接到当前 monorepo 包目录；此前仍指向旧的 `/Users/chenshutian/Documents/Code/deepseek-harness-terminal-plugin`，所以在当前目录 build 不会影响运行中的 3081 服务。重启 Host 并硬刷新浏览器后才会加载新的 `lib/client.js`。
 
 ## 后续可选项
 

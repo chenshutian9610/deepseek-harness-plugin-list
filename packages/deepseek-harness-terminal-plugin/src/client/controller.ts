@@ -67,10 +67,20 @@ export class TerminalController implements ObservableSnapshot<TerminalSnapshot> 
 
   constructor() {
     this.terminal.loadAddon(this.fit)
-    this.input = this.terminal.onData((data) => {
+    const sendInput = (data: string): void => {
       if (this.socket?.readyState === WebSocket.OPEN && this.snapshot.phase === 'ready') {
         this.socket.send(JSON.stringify({ type: 'input', data }))
       }
+    }
+    this.input = this.terminal.onData(sendInput)
+    this.terminal.attachCustomKeyEventHandler((event) => {
+      if (event.type !== 'keydown' || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return true
+      const data = event.key === 'ArrowLeft' ? '\x1bb' : event.key === 'ArrowRight' ? '\x1bf' : undefined
+      if (data === undefined) return true
+      event.preventDefault()
+      event.stopPropagation()
+      sendInput(data)
+      return false
     })
   }
 
