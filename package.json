@@ -1,0 +1,10 @@
+{
+  "name": "deepseek-harness-plugin-list",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap": "node scripts/bootstrap.mjs",
+    "web": "bash packages/deepseek-harness-web/start.sh",
+    "web_lan": "bash packages/deepseek-harness-web/start_lan.sh"
+  }
+}

@@ -1,5 +1,5 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, symlinkSync, unlinkSync } from 'node:fs'
-import { dirname, isAbsolute, join } from 'node:path'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, symlinkSync, unlinkSync } from 'node:fs'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import {
   loadOptionalPatches,
@@ -106,43 +106,76 @@ function bridgePackage(installAnchor, profileDir, appPackages, name, knownDir) {
   symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir')
 }
 
+function loadLocalBundleLayers(binName, packagesDir) {
+  if (!packagesDir) return []
+  const root = resolve(packagesDir)
+  if (!existsSync(root)) throw new Error(`${binName}: local plugins directory does not exist: ${root}`)
+
+  const layers = []
+  for (const entry of readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isDirectory()) continue
+    const dir = join(root, entry.name)
+    const manifestPath = join(dir, 'package.json')
+    if (!existsSync(manifestPath)) continue
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    const bundle = manifest.dsh?.bundle
+    if (!bundle?.patch) continue
+    if (manifest.main && !existsSync(join(dir, manifest.main))) {
+      throw new Error(`${binName}: local bundle ${JSON.stringify(manifest.name)} is not built; run 'npm run bootstrap' from the repository root`)
+    }
+    layers.push({
+      name: manifest.name,
+      dir,
+      patches: loadOverlayPatches(binName, join(dir, bundle.patch)),
+    })
+  }
+  return layers
+}
+
 export function loadWebProfilePatches({
   binName = 'deepseek-harness-web',
   configPath,
   installAnchor,
   home,
+  localPackagesDir,
 } = {}) {
   const profileDir = resolveProfileDir('web', home)
   const profileAnchor = join(profileDir, 'package.json')
-  if (!existsSync(profileAnchor)) return []
+  const localLayers = loadLocalBundleLayers(binName, localPackagesDir)
+  const localNames = new Set(localLayers.map(layer => layer.name))
+  const profileLayers = []
 
-  const manifest = readProfileManifest(binName, profileDir)
+  if (existsSync(profileAnchor)) {
+    const manifest = readProfileManifest(binName, profileDir)
+    for (const name of manifest.dsh?.profile?.bundles ?? []) {
+      if (EXCLUDED_BUNDLES.has(name) || localNames.has(name)) continue
+      const dir = join(profileDir, 'node_modules', name)
+      if (!existsSync(join(dir, 'package.json'))) {
+        throw new Error(`${binName}: cannot resolve profile bundle ${JSON.stringify(name)} from ${profileDir}; run 'dsh plugin --profile web install'`)
+      }
+      const bundle = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).dsh?.bundle
+      if (bundle?.patch === undefined) throw new Error(`${binName}: profile bundle ${JSON.stringify(name)} declares no dsh.bundle`)
+      profileLayers.push({ name, dir, patches: loadOverlayPatches(binName, join(dir, bundle.patch)) })
+    }
+  }
+
+  const layers = [...localLayers, ...profileLayers]
+  const bundlePatches = layers.flatMap(layer => layer.patches)
+  const baseEntries = loadOverlayPatches(binName, configPath)
+  const afterBundles = applyEntryPatches(baseEntries, bundlePatches, () => {})
+  const userPatches = existsSync(profileAnchor)
+    ? dedupeProfilePatches(
+        afterBundles,
+        loadOptionalPatches(binName, join(profileDir, 'cordis.patch.yml')) ?? [],
+      )
+    : []
+  const patches = [...bundlePatches, ...userPatches]
+
   const appManifest = JSON.parse(readFileSync(installAnchor, 'utf8'))
   const appPackages = new Set([
     ...Object.keys(appManifest.dependencies ?? {}),
     ...Object.keys(appManifest.peerDependencies ?? {}),
   ])
-  const layers = []
-  for (const name of manifest.dsh?.profile?.bundles ?? []) {
-    if (EXCLUDED_BUNDLES.has(name)) continue
-    const dir = join(profileDir, 'node_modules', name)
-    if (!existsSync(join(dir, 'package.json'))) {
-      throw new Error(`${binName}: cannot resolve profile bundle ${JSON.stringify(name)} from ${profileDir}; run 'dsh plugin --profile web install'`)
-    }
-    const bundle = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).dsh?.bundle
-    if (bundle?.patch === undefined) throw new Error(`${binName}: profile bundle ${JSON.stringify(name)} declares no dsh.bundle`)
-    layers.push({ name, dir, patches: loadOverlayPatches(binName, join(dir, bundle.patch)) })
-  }
-
-  const bundlePatches = layers.flatMap(layer => layer.patches)
-  const baseEntries = loadOverlayPatches(binName, configPath)
-  const afterBundles = applyEntryPatches(baseEntries, bundlePatches, () => {})
-  const userPatches = dedupeProfilePatches(
-    afterBundles,
-    loadOptionalPatches(binName, join(profileDir, 'cordis.patch.yml')) ?? [],
-  )
-  const patches = [...bundlePatches, ...userPatches]
-
   const knownDirs = new Map(layers.map(layer => [layer.name, layer.dir]))
   for (const name of new Set([...knownDirs.keys(), ...insertedPackageNames(patches)])) {
     bridgePackage(installAnchor, profileDir, appPackages, name, knownDirs.get(name))

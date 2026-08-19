@@ -95,11 +95,26 @@ Bash、PowerShell、文件系统和子进程操作直接在宿主机上运行。
 
 ## 安装和运行
 
-可以使用封装好的脚本：
+在本 monorepo 中，首次拉取或插件依赖变化后先从仓库根目录统一准备：
+
+```sh
+npm run bootstrap
+```
+
+该命令安装并构建 `packages/` 下所有声明了 `dsh.bundle` 的插件，再安装 Web 生产依赖；不会写入 `$DSH_HOME`。随后可从根目录启动：
+
+```sh
+npm run web      # start.sh：本地回环地址
+npm run web_lan  # start_lan.sh：局域网可访问
+```
+
+两个脚本会设置本地插件目录，Web 启动时自动读取各插件的 `cordis.patch.yml`，并把插件包链接到本发行版的 `node_modules`，从而同时支持 Host 与浏览器端入口。缺少 `lib/` 时会提示重新执行 `npm run bootstrap`。本地插件与 `$DSH_HOME/profiles/web` 中同名的 bundle 同时存在时，优先使用本地版本；profile 自己的 `cordis.patch.yml` 仍最后应用。
+
+也可以直接使用封装好的脚本：
 - `start.sh`：本地回环地址
 - `start_lan.sh`：局域网可访问
 
-如果 `$DSH_HOME/profiles/web/package.json` 已存在，通过 `dsh plugin --profile web` 安装的外部 bundle 会在重启后同时应用到本发行版。该 profile 及其依赖属于可信宿主代码。当前 profile 已安装 `dsh-chat-process-visibility`：会话右上角的“过程详情”开关可持久化隐藏或显示工具调用、思考、上下文注入、压缩／重试与工作流运行等 Chat 内部过程节点，普通正文、状态、错误和独立“轨迹”视图不受影响。Web 终端插件现在可以通过已恢复的 PTY subprocess provider 创建终端。
+如果 `$DSH_HOME/profiles/web/package.json` 已存在，通过 `dsh plugin --profile web` 安装的其他外部 bundle 会在重启后同时应用到本发行版。该 profile 及其依赖属于可信宿主代码。会话右上角的“过程详情”开关可持久化隐藏或显示工具调用、思考、上下文注入、压缩／重试与工作流运行等 Chat 内部过程节点，普通正文、状态、错误和独立“轨迹”视图不受影响。Web 终端插件现在可以通过已恢复的 PTY subprocess provider 创建终端。
 
 项目根目录的 `dsh-lan.pm2.config.cjs` 提供等价的 PM2 配置，固定监听 `0.0.0.0:3081` 并开启远程设置：
 

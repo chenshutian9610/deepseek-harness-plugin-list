@@ -34,7 +34,11 @@ if (process.env.NODE_USE_ENV_PROXY === undefined && !process.execArgv.includes('
   const installAnchor = fileURLToPath(new URL('./package.json', import.meta.url))
   const moduleBaseUrl = new URL('./', import.meta.url).href
   const environment = loadLayeredEnv(name)
-  const profilePatches = loadWebProfilePatches({ configPath, installAnchor })
+  const profilePatches = loadWebProfilePatches({
+    configPath,
+    installAnchor,
+    localPackagesDir: process.env.DSH_LOCAL_PLUGINS_DIR,
+  })
   let ctx
   let stopping
 

@@ -38,3 +38,22 @@ DeepSeek Harness Web 定制版及相关插件的统一代码仓库。各项目�
 插件开发可使用独立的 [`deepseek-harness-plugin-skill`](skills/deepseek-harness-plugin-skill/README.md)。
 
 进入对应项目目录后，使用该项目 README 中记录的安装、检查和构建命令。Web 项目使用 npm，插件项目使用 pnpm。
+
+## 一键准备与启动
+
+首次拉取仓库或插件依赖变化后，在仓库根目录运行：
+
+```sh
+npm run bootstrap
+```
+
+该命令会扫描 `packages/` 中声明了 `dsh.bundle` 的插件，分别执行 `pnpm install --frozen-lockfile` 和 `pnpm run build`，然后安装 Web 的生产依赖。它不会向 `$DSH_HOME` 安装插件。
+
+启动方式：
+
+```sh
+npm run web      # packages/deepseek-harness-web/start.sh
+npm run web_lan  # packages/deepseek-harness-web/start_lan.sh
+```
+
+两个启动脚本会自动加载同级 `packages/` 下已构建的插件 bundle；本地插件与 `$DSH_HOME/profiles/web` 中同名的 bundle 同时存在时，优先使用仓库中的本地版本。
