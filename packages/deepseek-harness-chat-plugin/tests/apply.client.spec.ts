@@ -23,6 +23,18 @@ async function bench() {
   ctx.provide('locale', {
     register: () => () => {},
   } as never)
+  ctx.provide('sessions', {
+    list: {
+      getSnapshot: () => ({ ids: [], byId: {}, current: undefined }),
+      subscribe: () => () => {},
+    },
+  } as never)
+  ctx.provide('workspaces', {
+    list: {
+      getSnapshot: () => ({ items: [], archivedSessionIds: [] }),
+      subscribe: () => () => {},
+    },
+  } as never)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   return { ctx, slots, declaration, fiber }
@@ -33,7 +45,7 @@ describe('chat-process visibility browser plugin', () => {
 
   it('registers one Header utility and removes every owned resource on disposal', async () => {
     const b = await bench()
-    expect(inject).toEqual(['slots', 'locale'])
+    expect(inject).toEqual(['slots', 'locale', 'sessions', 'workspaces'])
     const entry = b.slots.entries('conversation.session.header.utilities')[0]
     expect(entry?.component).toBe(ProcessDetailsSwitch)
     expect(entry?.options).toMatchObject({ id: 'chat-process-visibility', order: -10 })

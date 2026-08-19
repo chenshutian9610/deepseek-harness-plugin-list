@@ -7,6 +7,7 @@ import styles from './styles.css?inline'
 import { bindProcessDetailsVisibility } from './dom-visibility.ts'
 import { en, NS, zh } from './locales.ts'
 import { ProcessDetailsSwitch } from './ProcessDetailsSwitch.tsx'
+import { bindUnreadNotifications } from './unread-notifications.ts'
 import { createProcessDetailsStore } from './visibility-store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -15,8 +16,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** Client services required by the Session Header contribution. */
-export const inject = ['slots', 'locale']
+/** Client services required by the Header control and unread reminders. */
+export const inject = ['slots', 'locale', 'sessions', 'workspaces']
 
 function installStyles(): () => void {
   const style = document.createElement('style')
@@ -33,7 +34,9 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => {
     const removeStyles = installStyles()
     const unbindVisibility = bindProcessDetailsVisibility()
+    const unbindUnread = bindUnreadNotifications(ctx.sessions.list, ctx.workspaces.list)
     return () => {
+      unbindUnread()
       unbindVisibility()
       removeStyles()
     }
