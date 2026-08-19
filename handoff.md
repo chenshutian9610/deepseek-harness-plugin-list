@@ -20,7 +20,13 @@
 - 根目录新增轻量 `package.json` 与 `scripts/bootstrap.mjs`，但仍未启用根级 workspace 或统一锁文件，避免改变现有安装、发布及补丁语义。
 - `npm run bootstrap` 会扫描 `packages/` 中声明了 `dsh.bundle` 的项目，逐个执行 pnpm 安装与构建，然后执行 Web 的生产依赖安装。
 - `npm run web` 与 `npm run web_lan` 分别转发到 Web 项目的 `start.sh` 与 `start_lan.sh`；两个脚本会让 Web 自动加载同级目录下已构建的本地插件，无需安装到 `$DSH_HOME`。
-- 本次按规则未创建 Git 提交，因此只合并了代码树，没有把来源仓库提交历史接入当前分支；如需保留跨仓库历史，后续需明确允许创建 merge/subtree 提交后再处理。
+- 初始导入时未接入各来源仓库的提交历史；如需保留跨仓库历史，后续需明确采用 merge/subtree 方式处理。
+
+## 最近功能调整
+
+- `packages/deepseek-harness-chat-plugin` 新增浏览器本地对话收藏，并把侧栏改为“工作区／收藏”双 Tab：工作区 Tab 保留宿主 WorkspaceBrowser，收藏 Tab 平铺收藏会话、显示所属工作区并可直接打开；收藏与 Tab 选择均持久化到 `localStorage`，不修改宿主会话数据和排序。
+- 已在该插件目录运行 `pnpm run check`，类型检查、5 个测试文件（6 个测试）和生产构建均通过；并在 `http://127.0.0.1:3081` 验证收藏切换、双 Tab、会话打开、刷新恢复及侧栏收起／展开均正常；切换收藏前后 Tab 组横向位移为 0。
+- 当前 `http://127.0.0.1:3080` 是另一套未加载本地插件的旧 Web 进程；本仓库 `start_lan.sh` 启动的实例在 3081。
 
 ## 验证
 

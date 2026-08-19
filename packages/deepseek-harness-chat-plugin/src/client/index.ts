@@ -5,6 +5,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import styles from './styles.css?inline'
 import { bindProcessDetailsVisibility } from './dom-visibility.ts'
+import { createFavoriteStore } from './favorite-store.ts'
+import { FavoriteButton } from './FavoriteButton.tsx'
 import { en, NS, zh } from './locales.ts'
 import { ProcessDetailsSwitch } from './ProcessDetailsSwitch.tsx'
 import { bindUnreadNotifications } from './unread-notifications.ts'
@@ -16,7 +18,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** Client services required by the Header control and unread reminders. */
+/** Client services required by the Header controls and sidebar indicators. */
 export const inject = ['slots', 'locale', 'sessions', 'workspaces']
 
 function installStyles(): () => void {
@@ -27,14 +29,17 @@ function installStyles(): () => void {
   return () => { style.remove() }
 }
 
-/** Register the persisted process-detail switch and bind it to Chat presentation. */
+/** Register persisted Header controls and bind their sidebar and Chat presentation. */
 export function apply(ctx: ClientContext): void {
-  const store = createProcessDetailsStore()
+  const processDetailsStore = createProcessDetailsStore()
+  const favoriteStore = createFavoriteStore()
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'chat-process-visibility: dictionaries')
   ctx.effect(() => {
     const removeStyles = installStyles()
     const unbindVisibility = bindProcessDetailsVisibility()
-    const unbindUnread = bindUnreadNotifications(ctx.sessions.list, ctx.workspaces.list)
+    const unbindUnread = bindUnreadNotifications(
+      ctx.sessions.list, ctx.workspaces.list, id => { ctx.sessions.open(id) },
+    )
     return () => {
       unbindUnread()
       unbindVisibility()
@@ -42,11 +47,20 @@ export function apply(ctx: ClientContext): void {
     }
   }, 'chat-process-visibility: styles + document state')
 
-  ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
-    name: 'conversation.session.header.utilities',
-    id: 'chat-process-visibility',
-    order: -10,
-    locale: NS,
-    store,
-  }, ProcessDetailsSwitch))
+  ctx.slots.inject('conversation.session.header.utilities', function* () {
+    yield ctx.slots.register({
+      name: 'conversation.session.header.utilities',
+      id: 'chat-process-visibility',
+      order: -10,
+      locale: NS,
+      store: processDetailsStore,
+    }, ProcessDetailsSwitch)
+    yield ctx.slots.register({
+      name: 'conversation.session.header.utilities',
+      id: 'chat-favorite',
+      order: 0,
+      locale: NS,
+      store: favoriteStore,
+    }, FavoriteButton)
+  })
 }

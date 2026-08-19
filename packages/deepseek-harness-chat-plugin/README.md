@@ -1,7 +1,11 @@
 # dsh-chat-process-visibility
 
-`dsh-chat-process-visibility` 是面向 DeepSeek Harness `0.1.0-rc.6` Web UI 的浏览器插件，在每个会话标题栏右上角增加“过程详情”开关，并在侧栏显示未读完成提醒。
+`dsh-chat-process-visibility` 是面向 DeepSeek Harness `0.1.0-rc.6` Web UI 的浏览器插件，在每个会话标题栏右上角增加“过程详情”和收藏控件，并把侧栏改为“工作区／收藏”双 Tab，同时保留未读完成提醒。
 
+- 侧栏顶部提供“工作区／收藏”两个同级 Tab；收藏 Tab 按最近更新时间列出全部收藏会话，并显示所属工作区。
+- 点击收藏 Tab 的会话会直接打开对应对话；Tab 选择会保存在浏览器，刷新后继续保留。
+- 标题栏星标可收藏／取消收藏当前对话；工作区 Tab 的对话行悬停时也会显示星标按钮，收藏后金色实心星会常驻显示。
+- 收藏状态仅保存在当前浏览器 `localStorage`，刷新页面或重启 Web 后仍会保留。
 - AI 回复结束时，如果该会话不是当前正在查看的会话，对话行会显示红点。
 - 工作区行会显示该目录下未读完成对话的红色数量；数字采用紧凑的 14px 徽标，打开对应对话后自动递减，归零后消失。
 - 默认开启过程详情，显示聊天中的工具调用、Think／reasoning、上下文注入、压缩／重试和工作流运行等内部过程信息。
@@ -29,7 +33,9 @@ dsh plugin --profile web remove dsh-chat-process-visibility
 
 ## 实现
 
-Host 半是无状态函数插件，仅用于让 Loader 扫描同包的 `dsh.client` manifest。浏览器半通过官方 `conversation.session.header.utilities` slot 注册开关，使用 Harness session-scoped `defineStore` 按会话持久化偏好，并给页面根节点同步 `data-dsh-process-details-hidden`。
+Host 半是无状态函数插件，仅用于让 Loader 扫描同包的 `dsh.client` manifest。浏览器半通过官方 `conversation.session.header.utilities` slot 注册过程详情和收藏控件，使用 Harness session-scoped `defineStore` 按会话持久化偏好，并给页面根节点同步 `data-dsh-process-details-hidden`。
+
+收藏状态按会话持久化到 `dsh.chat.favoriteSessions.v1.<sessionId>`，侧栏 Tab 选择保存在 `dsh.chat.sidebarTab.v1`。rc.6 没有 Session 行附加控件或 WorkspaceBrowser 内部 Tab slot，因此标题栏使用官方 slot，侧栏通过 `[data-slot='sidebar.workspaces']` 下的语义结构幂等挂载 Tab、收藏列表和星标按钮；工作区 Tab 仍直接使用宿主 WorkspaceBrowser，不修改会话数据或宿主排序。
 
 未读状态复用 Harness Session Runtime 的 `completed` 提醒，并将会话 id 列表持久化到 `dsh.chat.unreadSessions.v1`：非当前会话从运行中变为空闲时置为未读，打开会话时清除。插件通过侧栏语义节点恢复持久化红点，工作区数字按 Workspace 的 `sessionIds` 聚合；归档会话和 subagent 子会话不计入工作区数字。
 

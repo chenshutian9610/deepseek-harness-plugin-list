@@ -1,7 +1,7 @@
 {
   "name": "dsh-chat-process-visibility",
   "version": "0.1.0",
-  "description": "DeepSeek Harness chat process controls and unread completion reminders",
+  "description": "DeepSeek Harness chat process controls, favorites, and unread completion reminders",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
