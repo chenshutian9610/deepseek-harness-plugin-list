@@ -43,6 +43,8 @@ flowchart TB
 
 `bin.mjs` 加载分层环境变量，以 `cordis.yml` 为固定基础组合，并读取已有的 `$DSH_HOME/profiles/web`。其中 `@deepseek-ai/dsh-base` 与 `@deepseek-ai/dsh-web-app` 两层会被忽略，其余外部 bundles 依次覆盖基础组合；profile 自己的 `cordis.patch.yml` 最后应用。重复 `insert` 按 `id` 去重：同名插件转换为覆盖，插件名冲突则启动失败。外部包通过 profile 的 `node_modules` 解析，不会把官方基础 bundle 重新带回。配置在进程启动时读取，修改后需要重启。
 
+会话内容搜索使用 `@deepseek-ai/dsh-session-query-sqlite` 的内存 FTS5 索引，并以 `openAt: first-search` 延迟到首次搜索时加载和对账已有 JSONL 会话；搜索功能因此可用，同时不会增加未使用搜索时的启动开销。
+
 启动器默认以 `NODE_USE_ENV_PROXY=1` 重新启动实际服务进程，因此 DeepSeek、自定义 Provider 和模型发现使用的 Node `fetch` 会自动遵循启动环境中的 `HTTP_PROXY`、`HTTPS_PROXY` 与 `NO_PROXY`。显式设置 `NODE_USE_ENV_PROXY=0` 可以关闭该行为。
 
 宿主平面负责 Web/RPC 接口和共享注册表；内置 presets 添加面向各会话的工具与行为。工具直接使用本地 Bash/PowerShell/文件系统 providers；Shell 执行、文件系统搜索、后台任务和持久终端共用官方 `dsh-subprocess-local`，由它负责普通进程与 PTY 的清理、取消、进程树和有界输出生命周期。

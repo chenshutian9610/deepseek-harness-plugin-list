@@ -24,11 +24,18 @@
 
 ## 最近功能调整
 
+- `packages/deepseek-harness-chat-plugin` 新增全局快捷键：`Cmd/Ctrl + Shift + O` 进入新会话；`Cmd/Ctrl + K` 打开会话内容搜索弹窗，可用方向键选择、回车或鼠标双击进入结果会话；实现直接复用 Harness `workspaces.startSession()`、`sessions.search()` 和 `sessions.open()`。为使全文搜索实际可用，`packages/deepseek-harness-web/cordis.yml` 已将 `session-query-sqlite.openAt` 从 `never` 调整为 `first-search`。
 - `packages/deepseek-harness-chat-plugin` 新增浏览器本地对话收藏，并把侧栏改为“工作区／收藏”双 Tab：工作区 Tab 保留宿主 WorkspaceBrowser，收藏 Tab 平铺收藏会话、显示所属工作区并可直接打开；收藏与 Tab 选择均持久化到 `localStorage`，不修改宿主会话数据和排序。
 - 已在该插件目录运行 `pnpm run check`，类型检查、5 个测试文件（6 个测试）和生产构建均通过；并在 `http://127.0.0.1:3081` 验证收藏切换、双 Tab、会话打开、刷新恢复及侧栏收起／展开均正常；切换收藏前后 Tab 组横向位移为 0。
 - 当前 `http://127.0.0.1:3080` 是另一套未加载本地插件的旧 Web 进程；本仓库 `start_lan.sh` 启动的实例在 3081。
 
 ## 验证
+
+快捷键功能已在 `packages/deepseek-harness-chat-plugin` 运行 `pnpm run typecheck` 与 `pnpm run build`，均通过；未新增或运行测试用例，也未做浏览器自动化验证。
+
+会话搜索配置修复已使用隔离临时 `DSH_HOME` 在 `127.0.0.1:31877` 启动 Standalone Web，并直接调用 `session.search` RPC；查询成功返回 `{ items: [], hasMore: false }`，不再出现 `SESSION_QUERY_SEARCH_DISABLED`。
+
+实际 `$DSH_HOME` 首次建索引时又发现历史会话 `session-eac95f4d-817d-4d61-990d-4b38539f1a9a` 存在重复旧分支：已提交到 seq 4613 后再次从 seq 4604 写入，导致全局搜索以 `SESSION_QUERY_PERSISTENCE_FAILED` 失败。已备份原始 Zstd 日志为同目录 `session.jsonl.zstd.corrupt-20260820-023104.bak`，删除物理 JSONL 第 1150–1159 行的旧失败分支并原子替换；候选文件先在隔离 Web 中验证可被索引，随后 3081 的实时 `session.search("继续")` 成功返回 5 条结果并包含该修复会话。
 
 初始导入时已逐文件比较导入目录与各来源仓库 HEAD 的全部 Git tracked 文件，内容一致。
 

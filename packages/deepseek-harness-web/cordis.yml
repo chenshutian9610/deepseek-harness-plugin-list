@@ -62,7 +62,7 @@
   name: '@deepseek-ai/dsh-session-query-sqlite'
   config:
     path: ':memory:'
-    openAt: never
+    openAt: first-search
 - id: session-projection
   name: '@deepseek-ai/dsh-session-projection'
 - id: subprocess

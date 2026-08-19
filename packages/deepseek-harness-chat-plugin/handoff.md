@@ -2,6 +2,7 @@
 
 ## 当前状态
 
+- 新增全局快捷键：`Cmd/Ctrl + Shift + O` 调用 Harness `workspaces.startSession()` 进入当前／最近工作区的新会话；`Cmd/Ctrl + K` 打开原生 `<dialog>` 会话内容搜索框，调用 `sessions.search()`，支持方向键、回车和鼠标双击进入结果会话。该搜索依赖 Host 将 `session-query-sqlite.openAt` 配置为 `first-search` 或 `startup`，本 monorepo 的 Standalone Web 已启用 `first-search`。
 - “过程详情”和收藏按钮通过 `conversation.session.header.utilities` slot 显示在会话标题栏。
 - 侧栏顶部已改为“工作区／收藏”双 Tab；工作区 Tab 保留宿主 WorkspaceBrowser，收藏 Tab 按最近更新时间平铺收藏会话并显示所属工作区；切换到收藏时 Tab 组固定在左侧，不随右侧工作区操作隐藏而横移。
 - 收藏状态使用 session-scoped `defineStore` 持久化到 `dsh.chat.favoriteSessions.v1.<sessionId>`，Tab 选择持久化到 `dsh.chat.sidebarTab.v1`；刷新后恢复。
@@ -18,7 +19,8 @@
 
 ## 验证
 
-- 本次已在插件目录运行 `pnpm run check`：类型检查、5 个测试文件（6 个测试）和生产构建均通过。
+- 快捷键功能调整已在插件目录运行 `pnpm run typecheck` 与 `pnpm run build`，均通过；按项目约定未新增或运行测试用例，也未做浏览器自动化验证。
+- 上次已在插件目录运行 `pnpm run check`：类型检查、5 个测试文件（6 个测试）和生产构建均通过。
 - 已在 `http://127.0.0.1:3081` 实际验证：双 Tab 切换、收藏数量、所属工作区、收藏会话打开、取消收藏、刷新恢复 Tab 与列表，以及侧栏收起时隐藏 Tab、展开后恢复均正常；工作区／收藏切换前后 Tab 组 `x=16`，横向位移为 0；验证后已清除测试收藏并恢复工作区 Tab。
 - `http://127.0.0.1:3080` 当前是另一套未加载本插件的旧 Web 进程，在该端口看不到过程详情和收藏控件。
 - 上次已运行 `pnpm pack --dry-run`，发布包包含未读通知声明与客户端 bundle；本次未重复执行。

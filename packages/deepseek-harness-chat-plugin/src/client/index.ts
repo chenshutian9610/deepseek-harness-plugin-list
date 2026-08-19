@@ -4,6 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import styles from './styles.css?inline'
+import { bindChatShortcuts } from './chat-shortcuts.ts'
 import { bindProcessDetailsVisibility } from './dom-visibility.ts'
 import { createFavoriteStore } from './favorite-store.ts'
 import { FavoriteButton } from './FavoriteButton.tsx'
@@ -37,15 +38,17 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => {
     const removeStyles = installStyles()
     const unbindVisibility = bindProcessDetailsVisibility()
+    const unbindShortcuts = bindChatShortcuts(ctx.sessions, ctx.workspaces)
     const unbindUnread = bindUnreadNotifications(
       ctx.sessions.list, ctx.workspaces.list, id => { ctx.sessions.open(id) },
     )
     return () => {
       unbindUnread()
+      unbindShortcuts()
       unbindVisibility()
       removeStyles()
     }
-  }, 'chat-process-visibility: styles + document state')
+  }, 'chat-process-visibility: styles + document state + shortcuts')
 
   ctx.slots.inject('conversation.session.header.utilities', function* () {
     yield ctx.slots.register({
