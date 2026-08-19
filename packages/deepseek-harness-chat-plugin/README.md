@@ -3,7 +3,7 @@
 `dsh-chat-process-visibility` 是面向 DeepSeek Harness `0.1.0-rc.6` Web UI 的浏览器插件，在每个会话标题栏右上角增加“过程详情”和收藏控件，并把侧栏改为“工作区／收藏”双 Tab，同时保留未读完成提醒。
 
 - `Cmd/Ctrl + Shift + O` 直接进入新会话，复用 Harness 当前／最近工作区的新会话流程。
-- `Cmd/Ctrl + K` 打开会话内容搜索弹窗；支持方向键选择、回车进入，以及鼠标单击选择后双击进入会话。宿主需将 `session-query-sqlite.openAt` 配置为 `first-search` 或 `startup`；本仓库的 Standalone Web 已启用 `first-search`。
+- `Cmd/Ctrl + K` 打开会话内容搜索弹窗；空格分隔的关键词按 AND 匹配，可跨消息命中，支持忽略空白／标点的子串模糊匹配、全拼和拼音首字母；支持方向键选择、回车进入，以及鼠标单击选择后双击进入会话。
 - 侧栏顶部提供“工作区／收藏”两个同级 Tab；收藏 Tab 按最近更新时间列出全部收藏会话，并显示所属工作区。
 - 点击收藏 Tab 的会话会直接打开对应对话；Tab 选择会保存在浏览器，刷新后继续保留。
 - 标题栏星标可收藏／取消收藏当前对话；工作区 Tab 的对话行悬停时也会显示星标按钮，收藏后金色实心星会常驻显示。
@@ -35,9 +35,9 @@ dsh plugin --profile web remove dsh-chat-process-visibility
 
 ## 实现
 
-Host 半是无状态函数插件，仅用于让 Loader 扫描同包的 `dsh.client` manifest。浏览器半通过官方 `conversation.session.header.utilities` slot 注册过程详情和收藏控件，使用 Harness session-scoped `defineStore` 按会话持久化偏好，并给页面根节点同步 `data-dsh-process-details-hidden`。
+Host 半注册同源 `/api/chat.session-search` 路由，通过 `ctx.sessionQuery.filterEvents()` 读取 Harness 的语义会话文本，并使用 `pinyin-pro` 建立按会话缓存的规范文本／全拼／首字母索引；空格关键词可在同一会话的不同事件中分别命中。缓存会在当前进程追加或释放 Session 时失效，单个损坏历史日志会被跳过，不会阻断其他会话搜索。浏览器半通过官方 `conversation.session.header.utilities` slot 注册过程详情和收藏控件，使用 Harness session-scoped `defineStore` 按会话持久化偏好，并给页面根节点同步 `data-dsh-process-details-hidden`。
 
-快捷键直接调用 Harness 的 `workspaces.startSession()` 与 `sessions.search()`／`sessions.open()`，搜索弹窗使用浏览器原生 `<dialog>`，不复制 Host 的新会话和全文索引逻辑。
+新会话快捷键调用 Harness 的 `workspaces.startSession()`；搜索弹窗使用浏览器原生 `<dialog>` 请求插件 Host 路由，并以 `sessions.open()` 导航结果会话。
 
 收藏状态按会话持久化到 `dsh.chat.favoriteSessions.v1.<sessionId>`，侧栏 Tab 选择保存在 `dsh.chat.sidebarTab.v1`。rc.6 没有 Session 行附加控件或 WorkspaceBrowser 内部 Tab slot，因此标题栏使用官方 slot，侧栏通过 `[data-slot='sidebar.workspaces']` 下的语义结构幂等挂载 Tab、收藏列表和星标按钮；工作区 Tab 仍直接使用宿主 WorkspaceBrowser，不修改会话数据或宿主排序。
 

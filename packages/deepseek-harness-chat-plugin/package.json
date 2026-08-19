@@ -1,7 +1,7 @@
 {
   "name": "dsh-chat-process-visibility",
   "version": "0.1.0",
-  "description": "DeepSeek Harness chat process controls, favorites, and unread completion reminders",
+  "description": "DeepSeek Harness chat controls, favorites, unread reminders, and fuzzy/pinyin session search",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -52,6 +52,9 @@
     "@deepseek-ai/dsh-client-runtime": ">=0.1.0-rc.6 <0.2.0",
     "@deepseek-ai/dsh-client-ui-conversation": ">=0.1.0-rc.6 <0.2.0",
     "@deepseek-ai/dsh-client-ui-slots": ">=0.1.0-rc.6 <0.2.0",
+    "@deepseek-ai/dsh-host-webserver": ">=0.1.0-rc.6 <0.2.0",
+    "@deepseek-ai/dsh-session": ">=0.1.0-rc.6 <0.2.0",
+    "@deepseek-ai/dsh-session-query": ">=0.1.0-rc.6 <0.2.0",
     "react": "^18.2.0"
   },
   "devDependencies": {
@@ -60,6 +63,9 @@
     "@deepseek-ai/dsh-client-runtime": "0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-conversation": "0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-slots": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-host-webserver": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-session": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-session-query": "0.1.0-rc.6",
     "@testing-library/react": "^16.3.1",
     "@types/node": "^25.0.0",
     "@types/react": "~18.3.1",
@@ -74,5 +80,8 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "packageManager": "pnpm@11.21.0",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pinyin-pro": "^3.29.2"
+  }
 }

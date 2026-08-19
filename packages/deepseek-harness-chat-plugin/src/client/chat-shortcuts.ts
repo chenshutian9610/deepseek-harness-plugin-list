@@ -17,7 +17,7 @@ export function bindChatShortcuts(sessions: ISessions, workspaces: IWorkspaces):
         <kbd>Esc</kbd>
       </div>
       <input class="dsh-chat-search-dialog__input" type="search" maxlength="500"
-        autocomplete="off" placeholder="输入会话中的文字…" aria-label="搜索会话内容">
+        autocomplete="off" placeholder="输入关键词，空格分隔，支持拼音…" aria-label="搜索会话内容">
       <div class="dsh-chat-search-dialog__status" aria-live="polite"></div>
       <div class="dsh-chat-search-dialog__results" role="listbox" aria-label="搜索结果"></div>
       <div class="dsh-chat-search-dialog__hint">↑↓ 选择 · Enter 打开 · 双击打开</div>
@@ -101,17 +101,33 @@ export function bindChatShortcuts(sessions: ISessions, workspaces: IWorkspaces):
     const controller = searchController
     searchTimer = window.setTimeout(async () => {
       try {
-        const response = await sessions.search(query, controller.signal)
-        if (controller.signal.aborted) return
+        const response = await fetch('/api/chat.session-search', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ query }),
+          signal: controller.signal,
+        })
+        const value: unknown = await response.json()
         if (!response.ok) {
-          render(response.error.message)
-          return
+          throw new Error(typeof value === 'object' && value !== null
+            && typeof (value as { error?: unknown }).error === 'string'
+            ? (value as { error: string }).error : `搜索失败：HTTP ${response.status}`)
         }
-        results = response.value.items
+        if (typeof value !== 'object' || value === null
+          || !Array.isArray((value as { items?: unknown }).items)) {
+          throw new Error('搜索服务返回了无效结果')
+        }
+        results = (value as { items: unknown[] }).items.flatMap((item) => {
+          if (typeof item !== 'object' || item === null
+            || typeof (item as { sessionId?: unknown }).sessionId !== 'string'
+            || typeof (item as { snippet?: unknown }).snippet !== 'string') return []
+          return [item as SessionSearchResultItem]
+        })
         selectedIndex = results.length === 0 ? -1 : 0
         render(results.length === 0
           ? '没有匹配的会话'
-          : response.value.hasMore ? `显示前 ${results.length} 条结果` : '')
+          : (value as { hasMore?: unknown }).hasMore === true
+            ? `显示前 ${results.length} 条结果` : '')
       } catch (error) {
         if (!controller.signal.aborted) render(error instanceof Error ? error.message : String(error))
       }

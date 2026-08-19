@@ -10,7 +10,7 @@
     "noUnusedParameters": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
-    "types": [],
+    "types": ["node"],
     "composite": true,
     "skipLibCheck": true
   },
