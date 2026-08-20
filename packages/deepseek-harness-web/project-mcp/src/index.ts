@@ -2,8 +2,8 @@ import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import * as McpClient from '@deepseek-ai/dsh-mcp-client'
-import type { Config as McpClientConfig } from '@deepseek-ai/dsh-mcp-client'
+import * as McpClient from './mcp-client/index.ts'
+import type { Config as McpClientConfig } from './mcp-client/index.ts'
 import Schema from '@deepseek-ai/schemastery'
 
 /** Cordis plugin name used by loader diagnostics. */
@@ -159,40 +159,49 @@ export function toMcpClientConfig(
  * @param config - Resolved plugin configuration.
  */
 export function apply(ctx: Context, config: Config): void {
-  const mounted = new Map<Agent, Promise<void>>()
+  const mounted = new Map<Agent, Promise<Fiber[]>>()
   let stopping = false
+
+  const disposeAgent = async (agent: Agent): Promise<void> => {
+    const run = mounted.get(agent)
+    if (run === undefined) return
+    mounted.delete(agent)
+    const fibers = await run.catch(() => [])
+    await Promise.allSettled(fibers.map(async fiber => fiber.dispose()))
+  }
 
   const mount = (agent: Agent): void => {
     if (stopping || mounted.has(agent)) return
-    const run = mountAgentMcp(agent, config).catch((error: unknown) => {
-      ctx.logger.error(`project-mcp: agent "${agent.id}" failed to load project MCP configuration: ${renderError(error)}`)
-      throw error
-    })
+    const run = mountAgentMcp(agent, config)
     mounted.set(agent, run)
-    void run.catch(() => {})
+    void run.catch((error: unknown) => {
+      if (mounted.get(agent) === run) mounted.delete(agent)
+      ctx.logger.error(`project-mcp: agent "${agent.id}" failed to load project MCP configuration: ${renderError(error)}`)
+    })
   }
 
   ctx.effect(() => {
     const stopCreated = ctx.on('agent/created', ({ agent }) => { mount(agent) })
+    const stopDisposed = ctx.on('agent/disposed', ({ agent }) => { void disposeAgent(agent) })
     for (const agent of ctx.agents.list()) mount(agent)
 
     return async () => {
       stopping = true
       stopCreated()
-      const pending = [...mounted.values()]
-      mounted.clear()
-      await Promise.allSettled(pending)
+      stopDisposed()
+      const agents = [...mounted.keys()]
+      await Promise.allSettled(agents.map(disposeAgent))
     }
   }, 'project-mcp.lifecycle()')
 }
 
-async function mountAgentMcp(agent: Agent, config: Config): Promise<void> {
+async function mountAgentMcp(agent: Agent, config: Config): Promise<Fiber[]> {
   const sessionCwd = agent.session.header.cwd
   const projectRoot = resolve(config.projectRoot || sessionCwd || process.cwd())
   const loaded = await loadProjectMcpConfig(projectRoot, config.configPath, config.requireConfig)
   if (loaded.document === undefined) {
     agent.ctx.logger.debug(`project-mcp: no ${loaded.path}; no MCP servers loaded for agent "${agent.id}"`)
-    return
+    return []
   }
 
   const entries = Object.entries(loaded.document.mcpServers)
@@ -209,6 +218,7 @@ async function mountAgentMcp(agent: Agent, config: Config): Promise<void> {
   }
 
   agent.ctx.logger.info(`project-mcp: loaded ${entries.length} MCP server(s) for agent "${agent.id}" from ${loaded.path}`)
+  return fibers
 }
 
 function parseDocument(value: unknown, path: string): ClaudeMcpDocument {

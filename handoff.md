@@ -5,7 +5,6 @@
 本仓库已整理为 DeepSeek Harness monorepo。原 `deepseek-harness-plugin-list` 内容保留在根目录，其他仓库按原仓库名放入 `packages/`：
 
 - `packages/deepseek-harness-chat-plugin`：来源提交 `f33c206d8f2728291b5b9b93d8bc200b155a5510`
-- `packages/deepseek-harness-mcp-plugin`：来源提交 `fb2fc1eac7c9bdf894dd6ac3929ffc8efbf5dba4`
 - `packages/deepseek-harness-mermaid-plugin`：来源提交 `f6853b7fbc90405d670dc55c4198f0b0511536e7`
 - `packages/deepseek-harness-terminal-plugin`：来源提交 `919b3110cad00c78ad4748bd7d77f419c99056be`
 - `packages/deepseek-harness-web`：来源提交 `718ac106995621f9a927c9c7e7064a0dd9f2ba38`
@@ -16,13 +15,15 @@
 
 - Web 项目继续使用 npm 和自己的 `package-lock.json`。
 - 插件项目继续使用 pnpm 和各自的 `pnpm-lock.yaml`。
-- MCP 插件依赖项目级 `pnpm-workspace.yaml` 中的 `patchedDependencies`，不要在未迁移该补丁配置前删除它。
+- 原独立 MCP 插件已迁入 `packages/deepseek-harness-web/project-mcp`；官方 rc.8 MCP client 源码 fork 与 Agent 作用域修改直接包含在 Web 发布物中，不再依赖 pnpm `patchedDependencies`。
 - 根目录新增轻量 `package.json` 与 `scripts/bootstrap.mjs`，但仍未启用根级 workspace 或统一锁文件，避免改变现有安装、发布及补丁语义。
 - `npm run bootstrap` 会扫描 `packages/` 中声明了 `dsh.bundle` 的项目，逐个执行 pnpm 安装与构建，然后执行 Web 的生产依赖安装。
 - `npm run web` 与 `npm run web_lan` 分别转发到 Web 项目的 `start.sh` 与 `start_lan.sh`；两个脚本会让 Web 自动加载同级目录下已构建的本地插件，无需安装到 `$DSH_HOME`。
 - 初始导入时未接入各来源仓库的提交历史；如需保留跨仓库历史，后续需明确采用 merge/subtree 方式处理。
 
 ## 最近功能调整
+
+- `deepseek-harness-web` 已整体升级到官方 `0.1.0-rc.8`，同步 rc.8 Web renderer、brand、attachment、reference 与 preset 组合。原 `packages/deepseek-harness-mcp-plugin` 已删除并迁入 `packages/deepseek-harness-web/project-mcp`；内置 fork 基于官方 `@deepseek-ai/dsh-mcp-client@0.1.0-rc.8` / commit `141eb6fef83422698aef7a981029e843e8161534`，仅将 `serverName` 占用范围改为 `ctx.agent ?? ctx.root`，同时由 Web wrapper 显式持有并清理每个 Agent 的 MCP child Fibers。Profile loader 会忽略遗留的 `dsh-project-mcp` bundle 层，避免旧 profile 与内置行产生重复 `project-mcp` loader id，但不会自动改写用户 profile manifest。
 
 - `packages/deepseek-harness-chat-plugin` 为每条已完成的 AI 回复新增“回到回复开头”按钮，通过官方 `conversation.chat.assistant-actions` slot 挂载，点击后按回复 `messageId` 定位对应 Assistant 行并在会话滚动容器内平滑回到第一行；已在 3081 实例验证。
 - `packages/deepseek-harness-chat-plugin` 新增全局快捷键：`Cmd/Ctrl + Shift + O` 进入新会话；`Cmd/Ctrl + K` 打开会话内容搜索弹窗，可用空格分隔关键词进行跨消息 AND 模糊匹配，支持全拼和拼音首字母，并可用方向键选择、回车或鼠标双击进入结果会话。插件 Host 通过 `sessionQuery.filterEvents()` 提供独立的同源搜索路由，不依赖 SQLite FTS；`packages/deepseek-harness-web/cordis.yml` 的 `session-query-sqlite.openAt: first-search` 仍供宿主原生搜索使用。
@@ -31,6 +32,8 @@
 - 当前 `http://127.0.0.1:3080` 是另一套未加载本地插件的旧 Web 进程；本仓库 `start_lan.sh` 启动的实例在 3081。
 
 ## 验证
+
+Web rc.8 + 内置 MCP 迁移已通过 `npm run check`、全新 `npm ci --omit=dev`、生产依赖树检查、预构建 MCP 模块导入、`npm pack --dry-run` 内容检查，以及隔离 `DSH_HOME` 的 31987 启动／关闭验证。`agent-browser` 在 390×844 完成无 Key onboarding 并进入 rc.8 App shell，页面、body 与 viewport 宽度均为 390，无横向溢出；未发送模型请求，未使用 `playwright-cli`。另使用仍包含旧 `dsh-project-mcp` bundle 的真实 Web profile 运行 `sh start_lan.sh`，3081 启动成功且 loopback HTTP 返回 200。
 
 回复回顶按钮已在 `packages/deepseek-harness-chat-plugin` 运行 `pnpm run check`，类型检查、5 个测试文件（6 个测试）和生产构建均通过；在 `http://127.0.0.1:3081` 实测按钮显示及平滑滚动落点正确。
 

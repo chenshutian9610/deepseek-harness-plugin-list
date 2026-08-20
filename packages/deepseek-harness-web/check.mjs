@@ -8,8 +8,9 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { runInNewContext } from 'node:vm'
 import { Context } from '@deepseek-ai/cordis'
 import { applyEntryPatches } from '@deepseek-ai/cordis-plugin-include'
+import { DEFAULT_MAX_IMAGE_BYTES, DEFAULT_MAX_IMAGE_DIMENSION } from '@deepseek-ai/dsh-attachment-local'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
-import LlmRuntime from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as LanAuth from './lan-auth/index.mjs'
 import * as LanSettings from './lan-settings.mjs'
@@ -24,6 +25,8 @@ const presets = await Promise.all(['standard', 'code', 'minimal', 'cordis'].map(
 const manifest = JSON.parse(await readFile(new URL('./package.json', import.meta.url), 'utf8'))
 const lock = JSON.parse(await readFile(new URL('./package-lock.json', import.meta.url), 'utf8'))
 const authClient = await readFile(new URL('./lan-auth/client.js', import.meta.url), 'utf8')
+const projectMcpSource = await readFile(new URL('./project-mcp/src/index.ts', import.meta.url), 'utf8')
+const mcpClientSource = await readFile(new URL('./project-mcp/src/mcp-client/index.ts', import.meta.url), 'utf8')
 
 for (const plugin of [
   '@deepseek-ai/dsh-client-ui-model-selection',
@@ -31,6 +34,12 @@ for (const plugin of [
   '@deepseek-ai/dsh-client-ui-settings-models',
   '@deepseek-ai/dsh-client-ui-settings-plugins',
   '@deepseek-ai/dsh-client-ui-conversation',
+  '@deepseek-ai/dsh-client-ui-renderer',
+  '@deepseek-ai/dsh-client-ui-brand-official',
+  '@deepseek-ai/dsh-client-ui-attachment',
+  '@deepseek-ai/dsh-client-ui-reference',
+  '@deepseek-ai/dsh-session-reference',
+  '@deepseek-ai/dsh-file-reference-local',
   '@deepseek-ai/dsh-client-ui-skill',
   '@deepseek-ai/dsh-client-ui-subagent',
   '@deepseek-ai/dsh-client-ui-workflow-run',
@@ -45,6 +54,8 @@ assert.ok(config.includes("name: '@deepseek-ai/dsh-subprocess-local'"), 'missing
 assert.ok(config.includes("name: './llm-custom-providers.mjs'"), 'missing custom LLM provider')
 assert.ok(config.includes("name: './web-crypto-polyfill.mjs'"), 'missing insecure-origin Web Crypto compatibility')
 assert.ok(config.includes("name: './web-startup.mjs'"), 'missing network-capable web startup provider')
+assert.ok(config.includes('openBrowser: false'), 'standalone Web must not auto-open a browser')
+assert.ok(config.includes("name: './project-mcp/lib/index.js'"), 'missing built-in project MCP provider')
 
 for (const plugin of [
   '@deepseek-ai/dsh-sandbox-local',
@@ -57,12 +68,9 @@ for (const plugin of [
   '@deepseek-ai/dsh-web',
   '@deepseek-ai/dsh-web-search-deepseek',
 ]) assert.equal(manifest.dependencies[plugin], undefined, `${plugin} must not be installed`)
-for (const plugin of [
-  '@deepseek-ai/dsh-subprocess-local',
-  '@deepseek-ai/dsh-terminal',
-  '@deepseek-ai/dsh-terminal-bash',
-  '@deepseek-ai/dsh-tool-bash-persistent',
-]) assert.equal(manifest.dependencies[plugin], '0.1.0-rc.6', `${plugin} must be pinned`)
+for (const [plugin, version] of Object.entries(manifest.dependencies)) {
+  if (plugin.startsWith('@deepseek-ai/dsh-')) assert.equal(version, '0.1.0-rc.8', `${plugin} must be pinned to rc.8`)
+}
 for (const plugin of ['@deepseek-ai/dsh-tool-web', '@deepseek-ai/dsh-web', '@deepseek-ai/dsh-web-search-deepseek']) {
   assert.ok(!config.includes(`name: '${plugin}'`), `${plugin} must not be composed on the host`)
 }
@@ -84,12 +92,25 @@ for (const plugin of [
 assert.equal(manifest.dependencies.openai, '6.26.0')
 assert.equal(manifest.dependencies['@anthropic-ai/sdk'], '0.91.1')
 assert.equal(manifest.dependencies['deepseek-harness-web-lan-auth'], 'file:./lan-auth')
-assert.equal(lock.packages['node_modules/node-pty'].version, '1.1.0')
+assert.equal(manifest.dependencies['@modelcontextprotocol/sdk'], '1.29.0')
+assert.equal(manifest.dependencies.zod, '4.4.3')
+assert.equal(lock.packages['node_modules/node-pty'].version, '1.2.0-beta.15')
+assert.equal(lock.packages['node_modules/koffi'].version, '3.1.5')
 assert.equal(lock.packages['node_modules/deepseek-harness-web-lan-auth'].link, true)
+assert.equal(lock.packages['node_modules/deepseek-harness-web-project-mcp'], undefined)
+assert.equal(lock.packages['project-mcp'], undefined, 'project MCP must not be a nested npm package')
+assert.equal(DEFAULT_MAX_IMAGE_BYTES, 3.5 * 1024 * 1024, 'rc.8 attachment byte limit drift must stay explicit')
+assert.equal(DEFAULT_MAX_IMAGE_DIMENSION, 2_000, 'rc.8 attachment dimension drift must stay explicit')
+assert.equal(resolveRetryPolicy(undefined, 'deepseek-harness-web rc.8 defaults').maxRetries, 5, 'rc.8 retry drift must stay explicit')
 assert.ok(manifest.files.includes('profile-config.mjs'))
 assert.ok(manifest.files.includes('startup-diagnostics.mjs'))
 assert.ok(manifest.files.includes('lan-auth'))
+assert.ok(manifest.files.includes('project-mcp/lib'))
+assert.ok(manifest.files.includes('project-mcp/src'))
 assert.ok(authClient.includes("id: 'deepseek-harness-web-lan-auth'"))
+assert.ok(projectMcpSource.includes("from './mcp-client/index.ts'"), 'project MCP must use the Web-owned MCP client')
+assert.ok(!projectMcpSource.includes("from '@deepseek-ai/dsh-mcp-client'"), 'project MCP must not import the official MCP client package')
+assert.ok(mcpClientSource.includes('const reservationOwner = ctx.agent ?? ctx.root'), 'MCP client reservation must be agent-scoped')
 
 const nestedStartupFailure = new Error('deepseek-harness-web: plugin tree failed to load: loader entries failed to apply', {
   cause: new AggregateError([
@@ -107,13 +128,15 @@ try {
   const appDir = join(profileRoot, 'app')
   const profileDir = join(profileRoot, 'home', 'profiles', 'web')
   const bundleDir = join(profileDir, 'node_modules', 'test-web-bundle')
+  const legacyMcpBundleDir = join(profileDir, 'node_modules', 'dsh-project-mcp')
   await mkdir(bundleDir, { recursive: true })
+  await mkdir(legacyMcpBundleDir, { recursive: true })
   const appManifest = join(appDir, 'package.json')
   const baseConfig = join(appDir, 'cordis.yml')
   await mkdir(join(appDir, 'node_modules'), { recursive: true })
   await symlink(join(profileRoot, 'missing-bundle'), join(appDir, 'node_modules', 'test-web-bundle'), process.platform === 'win32' ? 'junction' : 'dir')
   await writeFile(appManifest, JSON.stringify({ name: 'test-app', type: 'module' }))
-  await writeFile(baseConfig, "- id: existing\n  name: existing-plugin\n  disabled: true\n  config:\n    value: base\n")
+  await writeFile(baseConfig, "- id: existing\n  name: existing-plugin\n  disabled: true\n  config:\n    value: base\n- id: project-mcp\n  name: ./project-mcp/lib/index.js\n")
   await writeFile(join(bundleDir, 'package.json'), JSON.stringify({
     name: 'test-web-bundle',
     type: 'module',
@@ -122,8 +145,16 @@ try {
   }))
   await writeFile(join(bundleDir, 'index.js'), 'export function apply() {}\n')
   await writeFile(join(bundleDir, 'cordis.patch.yml'), "- insert:\n    - id: external\n      name: test-web-bundle\n")
+  await writeFile(join(legacyMcpBundleDir, 'package.json'), JSON.stringify({
+    name: 'dsh-project-mcp',
+    type: 'module',
+    main: './index.js',
+    dsh: { bundle: { patch: './cordis.patch.yml' } },
+  }))
+  await writeFile(join(legacyMcpBundleDir, 'index.js'), 'export function apply() {}\n')
+  await writeFile(join(legacyMcpBundleDir, 'cordis.patch.yml'), "- insert:\n    - id: project-mcp\n      name: dsh-project-mcp\n")
   await writeFile(join(profileDir, 'package.json'), JSON.stringify({
-    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'test-web-bundle'] } },
+    dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'test-web-bundle', 'dsh-project-mcp'] } },
   }))
   await writeFile(join(profileDir, 'cordis.patch.yml'), [
     '- insert:',
@@ -143,12 +174,16 @@ try {
   })
   const composed = applyEntryPatches([
     { id: 'existing', name: 'existing-plugin', disabled: true, config: { value: 'base' } },
+    { id: 'project-mcp', name: './project-mcp/lib/index.js' },
   ], patches, message => assert.fail(message))
   assert.equal(composed.filter(entry => entry.id === 'existing').length, 1)
   assert.deepEqual(composed.find(entry => entry.id === 'existing').config, { value: 'profile' })
   assert.equal(composed.find(entry => entry.id === 'existing').disabled, undefined)
   assert.ok(composed.some(entry => entry.id === 'external'))
   assert.ok(composed.some(entry => entry.id === 'added'))
+  assert.equal(composed.filter(entry => entry.id === 'project-mcp').length, 1)
+  assert.equal(composed.find(entry => entry.id === 'project-mcp').name, './project-mcp/lib/index.js')
+  assert.ok(!JSON.stringify(patches).includes('dsh-project-mcp'), 'legacy project MCP profile bundle must be ignored')
   assert.equal((await lstat(join(appDir, 'node_modules', 'test-web-bundle'))).isSymbolicLink(), true)
   assert.throws(() => dedupeProfilePatches(
     [{ id: 'same', name: 'first' }],

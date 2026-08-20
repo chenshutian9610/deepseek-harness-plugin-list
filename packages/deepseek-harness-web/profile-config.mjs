@@ -10,6 +10,7 @@ import {
 import { applyEntryPatches } from '@deepseek-ai/cordis-plugin-include'
 
 const EXCLUDED_BUNDLES = new Set(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'])
+const SUPERSEDED_BUNDLES = new Set(['dsh-project-mcp'])
 
 function rowsById(entries) {
   const rows = new Map()
@@ -118,6 +119,7 @@ function loadLocalBundleLayers(binName, packagesDir) {
     const manifestPath = join(dir, 'package.json')
     if (!existsSync(manifestPath)) continue
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    if (SUPERSEDED_BUNDLES.has(manifest.name)) continue
     const bundle = manifest.dsh?.bundle
     if (!bundle?.patch) continue
     if (manifest.main && !existsSync(join(dir, manifest.main))) {
@@ -148,7 +150,7 @@ export function loadWebProfilePatches({
   if (existsSync(profileAnchor)) {
     const manifest = readProfileManifest(binName, profileDir)
     for (const name of manifest.dsh?.profile?.bundles ?? []) {
-      if (EXCLUDED_BUNDLES.has(name) || localNames.has(name)) continue
+      if (EXCLUDED_BUNDLES.has(name) || SUPERSEDED_BUNDLES.has(name) || localNames.has(name)) continue
       const dir = join(profileDir, 'node_modules', name)
       if (!existsSync(join(dir, 'package.json'))) {
         throw new Error(`${binName}: cannot resolve profile bundle ${JSON.stringify(name)} from ${profileDir}; run 'dsh plugin --profile web install'`)

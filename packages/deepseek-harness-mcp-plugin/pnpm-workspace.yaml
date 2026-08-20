@@ -1,4 +1,0 @@
-allowBuilds:
-  esbuild: true
-patchedDependencies:
-  '@deepseek-ai/dsh-mcp-client@0.1.0-rc.6': patches/@deepseek-ai__dsh-mcp-client@0.1.0-rc.6.patch

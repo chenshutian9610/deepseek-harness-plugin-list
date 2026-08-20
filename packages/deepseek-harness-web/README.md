@@ -4,7 +4,7 @@
 
 ## 包含的功能
 
-该发行版保留模型选择、通用/模型/插件设置、会话、会话搜索与导出、反馈、目标、计划、任务、Skills、子代理、工作流、轨迹、Code Mode、Cordis Mode，以及 `standard`、`code`、`minimal` 和 `cordis` Agent presets。`minimal`（极简模式）只提供持久 Bash 与 `str_replace_editor`。
+该发行版保留模型选择、通用/模型/插件设置、会话、会话搜索与导出、附件与文件／会话引用、反馈、目标、计划、任务、Skills、子代理、工作流、轨迹、Code Mode、Cordis Mode，以及 `standard`、`code`、`minimal` 和 `cordis` Agent presets。`minimal`（极简模式）在 Unix 提供持久 Bash，在 Windows 提供持久 PowerShell，并保留 `str_replace_editor`。
 
 该发行版不包含面向模型的 Web 搜索／抓取工具和 OpenTelemetry 会话导出。不需要共享插件时可以使用独立的 `DSH_HOME`。既有 `llm-pi-ai` profiles 不再继承 pi-ai catalogs：每条路由都必须显式提供一个受支持的 `api`、`baseURL` 和非空 `models` 列表。
 
@@ -19,6 +19,7 @@ flowchart TB
   subgraph Host["宿主平面"]
     Composition --> Web
     Composition --> Shared["共享服务<br/>模型 · 会话 · 任务 · Skills · 子代理 · 存储"]
+    Composition --> ProjectMCP["内置 project-mcp<br/>Agent 作用域 MCP client"]
     Composition --> Presets["Preset 列表<br/>standard · code · cordis"]
   end
 
@@ -34,6 +35,8 @@ flowchart TB
     Providers -->|"Shell · 搜索 · 后台任务 · 持久终端"| Subprocess["dsh-subprocess-local<br/>普通进程 + PTY 生命周期"]
     Subprocess -->|"node-pty"| OS
     Shared --> Home["DSH_HOME<br/>JSONL 会话 · JSON 存储"]
+    ProjectMCP --> MCPServers["会话项目 .mcp.json<br/>stdio · Streamable HTTP"]
+    MCPServers --> OS
   end
 
   Composition -.-> Removed["从生产依赖闭包中移除<br/>本地 Sandbox 组件 · OpenTelemetry 会话导出<br/>pi-ai · Google/Mistral/Bedrock SDKs · DeepSeek Web Search<br/>Codex/Claude Code Providers"]
@@ -43,6 +46,8 @@ flowchart TB
 
 `bin.mjs` 加载分层环境变量，以 `cordis.yml` 为固定基础组合，并读取已有的 `$DSH_HOME/profiles/web`。其中 `@deepseek-ai/dsh-base` 与 `@deepseek-ai/dsh-web-app` 两层会被忽略，其余外部 bundles 依次覆盖基础组合；profile 自己的 `cordis.patch.yml` 最后应用。重复 `insert` 按 `id` 去重：同名插件转换为覆盖，插件名冲突则启动失败。外部包通过 profile 的 `node_modules` 解析，不会把官方基础 bundle 重新带回。配置在进程启动时读取，修改后需要重启。
 
+为兼容从旧独立 MCP 插件升级，profile manifest 中遗留的 `dsh-project-mcp` bundle 会被明确忽略，由内置 `project-mcp` 接管；这避免旧 bundle 再次插入同名 loader id。用户可以随后从 `$DSH_HOME/profiles/web/package.json` 中移除该旧 dependency/bundle 项，但启动器不会自动修改用户 profile。其他名称冲突仍保持 fail-fast。
+
 会话内容搜索使用 `@deepseek-ai/dsh-session-query-sqlite` 的内存 FTS5 索引，并以 `openAt: first-search` 延迟到首次搜索时加载和对账已有 JSONL 会话；搜索功能因此可用，同时不会增加未使用搜索时的启动开销。
 
 启动器默认以 `NODE_USE_ENV_PROXY=1` 重新启动实际服务进程，因此 DeepSeek、自定义 Provider 和模型发现使用的 Node `fetch` 会自动遵循启动环境中的 `HTTP_PROXY`、`HTTPS_PROXY` 与 `NO_PROXY`。显式设置 `NODE_USE_ENV_PROXY=0` 可以关闭该行为。
@@ -50,6 +55,8 @@ flowchart TB
 宿主平面负责 Web/RPC 接口和共享注册表；内置 presets 添加面向各会话的工具与行为。工具直接使用本地 Bash/PowerShell/文件系统 providers；Shell 执行、文件系统搜索、后台任务和持久终端共用官方 `dsh-subprocess-local`，由它负责普通进程与 PTY 的清理、取消、进程树和有界输出生命周期。
 
 `llm-custom-providers.mjs` 替换了 pi-ai adapter，同时保留 `llm-pi-ai` settings namespace 和 Web 自定义 Provider 表单。它只注册用户声明的路由，并通过 OpenAI 或 Anthropic SDK 分派请求；发行包不再内置任何官方 Provider 或模型 catalog。
+
+内置 `deepseek-harness-web-project-mcp` 会在每个 Agent 创建时读取该会话工作目录中的 Claude Code 风格 `.mcp.json`，并把服务器挂载到 `agent.ctx`。它直接携带一份基于官方 `@deepseek-ai/dsh-mcp-client@0.1.0-rc.8` 的 Web-owned fork；唯一有意的行为差异是让 `serverName` 按 `ctx.agent ?? ctx.root` 占用，因此不同会话可以同时使用相同 MCP namespace。Web wrapper 同时持有每个 MCP child Fiber：Agent 销毁、wrapper 卸载、启动失败和 Host 关闭都会等待连接与子进程清理完成。该能力不再依赖同级 `dsh-project-mcp` bundle 或 pnpm patch；源码来源、许可证和同步约束见 [`project-mcp/README.md`](project-mcp/README.md)。`.mcp.json` 可以启动任意本机进程且不经过 Agent 工具沙箱，只应在可信项目中启用，并应避免提交明文凭据。
 
 本地 Sandbox provider 仍未恢复：命令和终端直接在宿主机上执行。官方 `dsh-subprocess-local` 提供普通子进程和 `node-pty` 终端；`dsh-terminal`、`dsh-terminal-bash` 与 `dsh-tool-bash-persistent` 为 `minimal` preset 提供按 Agent 隔离的持久 Bash。其余被裁剪组件和 providers 均不提供回退。
 
@@ -174,7 +181,7 @@ npm start -- --host 0.0.0.0 --port 3081 \
 
 局域网登录会保护静态页面、HTTP RPC 和 WebSocket，但普通 HTTP 仍会明文传输密码、会话 Cookie 与业务数据，也不提供公网级传输安全。不要把服务端口直接暴露到公网；Internet 场景仍应增加 TLS、前置访问控制与防火墙，阻止客户端绕过安全入口直连服务。
 
-Harness packages 固定使用 npm 已发布的 `0.1.0-rc.6`。升级时应同时刷新提取的 composition 和 presets。
+Harness packages 固定使用 npm 已发布的 `0.1.0-rc.8`。当前 composition 和四个内置 presets 已与官方 rc.8 刷新，同时保留本发行版对 Web Search、sandbox、模型 provider 和启动行为的定制。升级有意接受两项官方默认行为变化，而不回钉 rc.7：本地附件单图上限为 3.5 MiB、最大边长为 2000；Harness 普通 LLM retry policy 的 `maxRetries` 默认为 5。自定义 Provider 仍可在自身 `retryPolicy` 中显式覆盖重试次数，部署层也可通过 Cordis patch 覆盖附件限制。
 
 ### 跨服务器部署注意事项
 
@@ -195,6 +202,6 @@ npm start
 
 ## 参考体积
 
-在 macOS arm64 上，全新 npm 生产安装占用 195.3 MiB，压缩后为 45.4 MiB；其中 `node-pty` 的多平台 prebuilds 占约 58 MiB。同一宿主机上的完整 `@deepseek-ai/dsh@0.1.0-rc.6` 安装占用 343 MiB，压缩后为 63 MiB。
+在 macOS arm64 上，从当前 rc.8 源码与锁文件执行全新 `npm ci --omit=dev` 后，生产目录占用 146.8 MiB（其中 `node_modules` 145.8 MiB），整体 gzip 压缩后约 35.3 MiB。`npm pack --dry-run` 的应用包本身为 178,604 bytes、解包后 482,378 bytes，共 55 个文件，并同时包含 `project-mcp/src` 上游 fork 源码、`project-mcp/lib` 预构建 ESM／声明文件、README 与 MIT 许可证；不会携带或安装嵌套 MCP package manifest。
 
 生产依赖闭包不包含本地 sandbox 组件、OpenTelemetry 会话导出、pi-ai、Google、Mistral、Bedrock、DeepSeek Web Search、Codex 和 Claude Code providers。PTY 与极简模式需要 `dsh-subprocess-local`、终端 packages 和 `node-pty`。三个自定义 wire protocols 仍使用 OpenAI 与 Anthropic SDK；完整 Web 与工具 packages 还需要语法高亮、图像库、sandbox 类型和 sandbox policy 元数据。

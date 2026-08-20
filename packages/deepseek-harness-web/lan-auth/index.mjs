@@ -145,7 +145,7 @@ export function apply(ctx) {
     registerFallback: server.registerFallback,
     registerUpgrade: server.registerUpgrade,
   }
-  // rc.6 has no middleware seat, so cover routes mounted both before and after this fiber.
+  // The pinned Web server exposes no middleware seat, so cover routes mounted both before and after this fiber.
   if (!(server.exact instanceof Map) || !(server.prefixes instanceof Map) || !(server.upgrades instanceof Map)) {
     throw new Error('lan-auth: the pinned webserver route registry shape changed')
   }
