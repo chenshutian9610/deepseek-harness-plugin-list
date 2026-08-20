@@ -57,6 +57,41 @@ export function bindUnreadNotifications(
   }
   let scheduled = false
   let disposed = false
+  const favicon = document.querySelector<HTMLLinkElement>("link[rel~='icon']")
+  const originalFaviconHref = favicon?.getAttribute('href') ?? null
+  let runningFaviconHref: string | null = null
+  let unreadFaviconHref: string | null = null
+
+  const syncFavicon = (): void => {
+    if (favicon === null || originalFaviconHref === null) return
+    const state = sessions.getSnapshot()
+    const href = state.ids.some(id => state.byId[id]?.running === true)
+      ? runningFaviconHref
+      : unread.size > 0 ? unreadFaviconHref : originalFaviconHref
+    if (href !== null && favicon.getAttribute('href') !== href) favicon.setAttribute('href', href)
+  }
+
+  if (originalFaviconHref !== null) {
+    void fetch(new URL(originalFaviconHref, document.baseURI)).then(async response => {
+      if (!response.ok) return
+      const svg = await response.text()
+      const end = svg.lastIndexOf('</svg>')
+      if (end < 0 || disposed) return
+      const encode = (overlay: string): string => `data:image/svg+xml,${encodeURIComponent(
+        `${svg.slice(0, end)}${overlay}${svg.slice(end)}`,
+      )}`
+      runningFaviconHref = encode(
+        '<circle cx="40" cy="40" r="9" fill="#fff"/>'
+        + '<circle cx="40" cy="40" r="6" fill="none" stroke="#4d6bfe" stroke-width="4" stroke-linecap="round" stroke-dasharray="25 13"/>',
+      )
+      unreadFaviconHref = encode(
+        '<circle cx="40" cy="40" r="9" fill="#fff"/><circle cx="40" cy="40" r="6.5" fill="#f04438"/>',
+      )
+      syncFavicon()
+    }).catch(() => {
+      // Favicon decoration is best-effort; the original icon remains valid.
+    })
+  }
 
   const sync = (): void => {
     const root = document.querySelector<HTMLElement>(SIDEBAR_SELECTOR)
@@ -304,6 +339,7 @@ export function bindUnreadNotifications(
       }
     }
     if (changed) persistUnread(unread)
+    syncFavicon()
     schedule()
   }
 
@@ -365,6 +401,7 @@ export function bindUnreadNotifications(
     window.removeEventListener('storage', onStorage)
     unsubscribeSessions()
     unsubscribeWorkspaces()
+    if (favicon !== null && originalFaviconHref !== null) favicon.setAttribute('href', originalFaviconHref)
     for (const badge of document.querySelectorAll(
       `.${BADGE_CLASS}, .${FAVORITE_BUTTON_CLASS}, .${SIDEBAR_TABS_CLASS}, .${FAVORITES_PANEL_CLASS}`,
     )) badge.remove()

@@ -2,6 +2,8 @@
 
 ## 当前状态
 
+- 浏览器标签页 favicon 会按“任意会话运行中 > 存在未读 > 普通”切换：运行中在原图标右下角叠加蓝色静态 loading 圆环，无运行中会话但存在未读时叠加红点，否则恢复原图标；插件卸载时也会恢复。
+- “过程详情=否”时，完整工具／Think／上下文等过程行继续隐藏，但运行中的 turn 会保留一条只读单行摘要：显示当前用户消息之后最后一个隐藏过程节点的折叠文本，并带 loading 圆环；该摘要没有点击或展开交互，turn 完成后自动移除。
 - 每条已完成的 AI 回复底部新增“回到回复开头”箭头按钮；通过官方 `conversation.chat.assistant-actions` slot 挂载，按该回复的 `messageId` 定位对应 `assistant-step`，点击后在 `[data-conversation-scroll]` 内平滑滚到回复第一行。
 - 新增全局快捷键：`Cmd/Ctrl + Shift + O` 调用 Harness `workspaces.startSession()` 进入当前／最近工作区的新会话；`Cmd/Ctrl + K` 打开原生 `<dialog>` 会话内容搜索框，调用插件 Host 的 `/api/chat.session-search`，支持空格分隔 AND 模糊匹配、全拼／拼音首字母、方向键、回车和鼠标双击进入结果会话。
 - Host 搜索路由通过 `sessionQuery.filterEvents()` 读取语义文本，按会话缓存规范文本、全拼和首字母；`session/event`／`session/disposed` 会使对应缓存失效，单个损坏日志只跳过该会话。冷缓存使用 4 个 worker 扫描，避免无界并发；不依赖 SQLite FTS 的 `openAt`。
@@ -21,6 +23,8 @@
 
 ## 验证
 
+- favicon 状态调整已在插件目录运行 `pnpm run check`，类型检查、5 个测试文件（6 个测试）和生产构建均通过；本次未做浏览器自动化验证。
+- 过程摘要调整已在插件目录运行 `pnpm run check`，类型检查、5 个测试文件（6 个测试）和生产构建均通过；本次未做浏览器自动化验证。
 - 回复回顶按钮已在插件目录运行 `pnpm run check`，类型检查、5 个测试文件（6 个测试）和生产构建均通过；已在 `http://127.0.0.1:3081` 验证按钮显示在回复操作区，并从 `scrollTop=1200` 平滑滚到 `scrollTop=1040`，目标回复首行落在滚动容器顶部下方 16px。
 - 空格模糊／拼音搜索调整已在插件目录运行 `pnpm run typecheck` 与 `pnpm run build`，均通过；按项目约定未新增或运行测试用例，也未做浏览器自动化验证。
 - 已用隔离 `DSH_HOME` 和真实 Zstd 会话验证 `继续`、`jixu`、`ji xu`、`kaifa peizhi`、`开发 助手` 均能命中；复制实际 89 个会话冷启动验证中，首次拼音查询约 5.1 秒，缓存后的查询约 0.02–0.09 秒；路由边界验证 GET=405、跨源 POST=403、纯标点查询=400。
