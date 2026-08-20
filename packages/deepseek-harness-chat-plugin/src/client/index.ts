@@ -10,6 +10,7 @@ import { createFavoriteStore } from './favorite-store.ts'
 import { FavoriteButton } from './FavoriteButton.tsx'
 import { en, NS, zh } from './locales.ts'
 import { ProcessDetailsSwitch } from './ProcessDetailsSwitch.tsx'
+import { ScrollToReplyStartButton } from './ScrollToReplyStartButton.tsx'
 import { bindUnreadNotifications } from './unread-notifications.ts'
 import { createProcessDetailsStore } from './visibility-store.ts'
 
@@ -49,6 +50,15 @@ export function apply(ctx: ClientContext): void {
       removeStyles()
     }
   }, 'chat-process-visibility: styles + document state + shortcuts')
+
+  ctx.slots.inject('conversation.chat.assistant-actions', function* () {
+    yield ctx.slots.register({
+      name: 'conversation.chat.assistant-actions',
+      id: 'chat-reply-to-start',
+      order: 20,
+      locale: NS,
+    }, ScrollToReplyStartButton)
+  })
 
   ctx.slots.inject('conversation.session.header.utilities', function* () {
     yield ctx.slots.register({

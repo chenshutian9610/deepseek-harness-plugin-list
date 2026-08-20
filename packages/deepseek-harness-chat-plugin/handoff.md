@@ -2,6 +2,7 @@
 
 ## 当前状态
 
+- 每条已完成的 AI 回复底部新增“回到回复开头”箭头按钮；通过官方 `conversation.chat.assistant-actions` slot 挂载，按该回复的 `messageId` 定位对应 `assistant-step`，点击后在 `[data-conversation-scroll]` 内平滑滚到回复第一行。
 - 新增全局快捷键：`Cmd/Ctrl + Shift + O` 调用 Harness `workspaces.startSession()` 进入当前／最近工作区的新会话；`Cmd/Ctrl + K` 打开原生 `<dialog>` 会话内容搜索框，调用插件 Host 的 `/api/chat.session-search`，支持空格分隔 AND 模糊匹配、全拼／拼音首字母、方向键、回车和鼠标双击进入结果会话。
 - Host 搜索路由通过 `sessionQuery.filterEvents()` 读取语义文本，按会话缓存规范文本、全拼和首字母；`session/event`／`session/disposed` 会使对应缓存失效，单个损坏日志只跳过该会话。冷缓存使用 4 个 worker 扫描，避免无界并发；不依赖 SQLite FTS 的 `openAt`。
 - “过程详情”和收藏按钮通过 `conversation.session.header.utilities` slot 显示在会话标题栏。
@@ -20,6 +21,7 @@
 
 ## 验证
 
+- 回复回顶按钮已在插件目录运行 `pnpm run check`，类型检查、5 个测试文件（6 个测试）和生产构建均通过；已在 `http://127.0.0.1:3081` 验证按钮显示在回复操作区，并从 `scrollTop=1200` 平滑滚到 `scrollTop=1040`，目标回复首行落在滚动容器顶部下方 16px。
 - 空格模糊／拼音搜索调整已在插件目录运行 `pnpm run typecheck` 与 `pnpm run build`，均通过；按项目约定未新增或运行测试用例，也未做浏览器自动化验证。
 - 已用隔离 `DSH_HOME` 和真实 Zstd 会话验证 `继续`、`jixu`、`ji xu`、`kaifa peizhi`、`开发 助手` 均能命中；复制实际 89 个会话冷启动验证中，首次拼音查询约 5.1 秒，缓存后的查询约 0.02–0.09 秒；路由边界验证 GET=405、跨源 POST=403、纯标点查询=400。
 - 上次已在插件目录运行 `pnpm run check`：类型检查、5 个测试文件（6 个测试）和生产构建均通过。

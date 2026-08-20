@@ -59,6 +59,31 @@
   transform: translateX(10px);
 }
 
+.dsh-chat-reply-start-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  border: 0;
+  border-radius: 28px;
+  color: var(--dsw-alias-label-tertiary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.dsh-chat-reply-start-button:hover,
+.dsh-chat-reply-start-button:focus-visible {
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.dsh-chat-reply-start-button:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
 .dsh-chat-favorite-button {
   display: inline-flex;
   flex: none;

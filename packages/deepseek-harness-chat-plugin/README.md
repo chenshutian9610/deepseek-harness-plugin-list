@@ -8,6 +8,7 @@
 - 点击收藏 Tab 的会话会直接打开对应对话；Tab 选择会保存在浏览器，刷新后继续保留。
 - 标题栏星标可收藏／取消收藏当前对话；工作区 Tab 的对话行悬停时也会显示星标按钮，收藏后金色实心星会常驻显示。
 - 收藏状态仅保存在当前浏览器 `localStorage`，刷新页面或重启 Web 后仍会保留。
+- 每条已完成的 AI 回复底部提供“回到回复开头”按钮，长回复读到底部后可直接平滑滚回该条回复的第一行。
 - AI 回复结束时，如果该会话不是当前正在查看的会话，对话行会显示红点。
 - 工作区行会显示该目录下未读完成对话的红色数量；数字采用紧凑的 14px 徽标，打开对应对话后自动递减，归零后消失。
 - 默认开启过程详情，显示聊天中的工具调用、Think／reasoning、上下文注入、压缩／重试和工作流运行等内部过程信息。
@@ -37,7 +38,7 @@ dsh plugin --profile web remove dsh-chat-process-visibility
 
 Host 半注册同源 `/api/chat.session-search` 路由，通过 `ctx.sessionQuery.filterEvents()` 读取 Harness 的语义会话文本，并使用 `pinyin-pro` 建立按会话缓存的规范文本／全拼／首字母索引；空格关键词可在同一会话的不同事件中分别命中。缓存会在当前进程追加或释放 Session 时失效，单个损坏历史日志会被跳过，不会阻断其他会话搜索。浏览器半通过官方 `conversation.session.header.utilities` slot 注册过程详情和收藏控件，使用 Harness session-scoped `defineStore` 按会话持久化偏好，并给页面根节点同步 `data-dsh-process-details-hidden`。
 
-新会话快捷键调用 Harness 的 `workspaces.startSession()`；搜索弹窗使用浏览器原生 `<dialog>` 请求插件 Host 路由，并以 `sessions.open()` 导航结果会话。
+新会话快捷键调用 Harness 的 `workspaces.startSession()`；搜索弹窗使用浏览器原生 `<dialog>` 请求插件 Host 路由，并以 `sessions.open()` 导航结果会话。回复回顶按钮通过官方 `conversation.chat.assistant-actions` slot 注册，按 `messageId` 从当前会话快照定位对应 `assistant-step`，再滚动宿主 `[data-conversation-scroll]`。
 
 收藏状态按会话持久化到 `dsh.chat.favoriteSessions.v1.<sessionId>`，侧栏 Tab 选择保存在 `dsh.chat.sidebarTab.v1`。rc.6 没有 Session 行附加控件或 WorkspaceBrowser 内部 Tab slot，因此标题栏使用官方 slot，侧栏通过 `[data-slot='sidebar.workspaces']` 下的语义结构幂等挂载 Tab、收藏列表和星标按钮；工作区 Tab 仍直接使用宿主 WorkspaceBrowser，不修改会话数据或宿主排序。
 

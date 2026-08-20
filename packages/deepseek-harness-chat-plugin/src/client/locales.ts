@@ -10,6 +10,7 @@ export type ProcessVisibilityKey =
   | 'hidden'
   | 'favorite.add'
   | 'favorite.remove'
+  | 'reply.toStart'
 
 /** Simplified Chinese dictionary. */
 export const zh: Record<ProcessVisibilityKey, string> = {
@@ -20,6 +21,7 @@ export const zh: Record<ProcessVisibilityKey, string> = {
   hidden: '过程详情已隐藏',
   'favorite.add': '收藏此对话',
   'favorite.remove': '取消收藏此对话',
+  'reply.toStart': '回到回复开头',
 }
 
 /** English dictionary. */
@@ -31,4 +33,5 @@ export const en: Record<ProcessVisibilityKey, string> = {
   hidden: 'Process details are hidden',
   'favorite.add': 'Favorite this conversation',
   'favorite.remove': 'Remove this conversation from favorites',
+  'reply.toStart': 'Back to start of reply',
 }
