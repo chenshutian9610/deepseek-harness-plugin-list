@@ -65,9 +65,15 @@ export function bindUnreadNotifications(
   const syncFavicon = (): void => {
     if (favicon === null || originalFaviconHref === null) return
     const state = sessions.getSnapshot()
+    const archived = new Set(workspaces.getSnapshot().archivedSessionIds)
+    const hasUnread = state.ids.some((id) => {
+      const session = state.byId[id]
+      return unread.has(id) && session !== undefined && !session.blank
+        && session.origin !== 'subagent' && !archived.has(id)
+    })
     const href = state.ids.some(id => state.byId[id]?.running === true)
       ? runningFaviconHref
-      : unread.size > 0 ? unreadFaviconHref : originalFaviconHref
+      : hasUnread ? unreadFaviconHref : originalFaviconHref
     if (href !== null && favicon.getAttribute('href') !== href) favicon.setAttribute('href', href)
   }
 
@@ -82,7 +88,9 @@ export function bindUnreadNotifications(
       )}`
       runningFaviconHref = encode(
         '<circle cx="40" cy="40" r="9" fill="#fff"/>'
-        + '<circle cx="40" cy="40" r="6" fill="none" stroke="#4d6bfe" stroke-width="4" stroke-linecap="round" stroke-dasharray="25 13"/>',
+        + '<circle cx="34.5" cy="40" r="1.8" fill="#4d6bfe"/>'
+        + '<circle cx="40" cy="40" r="1.8" fill="#4d6bfe"/>'
+        + '<circle cx="45.5" cy="40" r="1.8" fill="#4d6bfe"/>',
       )
       unreadFaviconHref = encode(
         '<circle cx="40" cy="40" r="9" fill="#fff"/><circle cx="40" cy="40" r="6.5" fill="#f04438"/>',
@@ -389,7 +397,10 @@ export function bindUnreadNotifications(
   window.addEventListener(FAVORITES_CHANGED_EVENT, schedule)
   window.addEventListener('storage', onStorage)
   const unsubscribeSessions = sessions.subscribe(reconcile)
-  const unsubscribeWorkspaces = workspaces.subscribe(schedule)
+  const unsubscribeWorkspaces = workspaces.subscribe(() => {
+    syncFavicon()
+    schedule()
+  })
   reconcile()
 
   return () => {
