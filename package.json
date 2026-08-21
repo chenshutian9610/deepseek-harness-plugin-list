@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "bootstrap": "node scripts/bootstrap.mjs",
+    "dist": "node scripts/dist.mjs",
     "web": "bash packages/deepseek-harness-web/start.sh",
     "web_lan": "bash packages/deepseek-harness-web/start_lan.sh"
   }

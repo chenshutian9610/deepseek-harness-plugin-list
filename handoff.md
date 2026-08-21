@@ -19,6 +19,7 @@
 - 根目录新增轻量 `package.json` 与 `scripts/bootstrap.mjs`，但仍未启用根级 workspace 或统一锁文件，避免改变现有安装、发布及补丁语义。
 - `npm run bootstrap` 会扫描 `packages/` 中声明了 `dsh.bundle` 的项目，逐个执行 pnpm 安装与构建，然后执行 Web 的生产依赖安装。
 - `npm run web` 与 `npm run web_lan` 分别转发到 Web 项目的 `start.sh` 与 `start_lan.sh`；两个脚本会让 Web 自动加载同级目录下已构建的本地插件，无需安装到 `$DSH_HOME`。
+- `npm run dist` 会构建所有同级 bundle，在临时目录按 Web 锁文件安装生产依赖，将插件 tarball 与缺失的直接运行时依赖复制进最终 `node_modules`，再只保留当前 `process.platform-process.arch` 的 `node-pty` 预构建文件。产物包含可移动目录与 `.tar.gz`，不包含 Node.js，也不会引用仓库内插件路径。
 - 初始导入时未接入各来源仓库的提交历史；如需保留跨仓库历史，后续需明确采用 merge/subtree 方式处理。
 
 ## 最近功能调整
@@ -46,3 +47,5 @@ Web rc.8 + 内置 MCP 迁移已通过 `npm run check`、全新 `npm ci --omit=de
 初始导入时已逐文件比较导入目录与各来源仓库 HEAD 的全部 Git tracked 文件，内容一致。
 
 本地插件自动集成改动仅执行了脚本语法、JSON 和 Shell 静态检查；未运行 `npm run bootstrap`，也未执行插件构建或 Web 启动。
+
+当前平台发行包功能已在 macOS arm64 执行 `npm run dist`：三个插件均完成生产构建，临时 Web 生产安装与 `node ./check.mjs` 通过，输出目录文件逻辑总量为 102.9 MiB（macOS `du` 磁盘占用 133 MiB）、gzip 包为 31.4 MiB。隔离 `DSH_HOME` 启动后 HTTP 200，首页同时声明 `dsh-chat-process-visibility`、`dsh-web-mermaid`、`dsh-web-terminal` 三个 Client 模块；随后将 tarball 解压到新的系统临时目录再次启动，HTTP 与插件模块均正常，验证产物不依赖原仓库绝对路径。

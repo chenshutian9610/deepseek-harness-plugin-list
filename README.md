@@ -57,3 +57,18 @@ npm run web_lan  # packages/deepseek-harness-web/start_lan.sh
 ```
 
 两个启动脚本会自动加载同级 `packages/` 下已构建的插件 bundle；本地插件与 `$DSH_HOME/profiles/web` 中同名的 bundle 同时存在时，优先使用仓库中的本地版本。
+
+## 构建当前平台发行包
+
+```sh
+npm run dist
+```
+
+该命令会构建所有同级插件，在临时目录安装 Web 生产依赖并组装插件 tarball，裁剪 `node-pty` 的其他系统／架构预构建文件，然后生成：
+
+```text
+dist/deepseek-harness-web-<version>-<platform>-<arch>/
+dist/deepseek-harness-web-<version>-<platform>-<arch>.tar.gz
+```
+
+发行目录不包含 Node.js，也不需要在部署位置执行 `npm install`。目标机器需要安装项目声明的兼容 Node.js，且系统、CPU 架构和 Linux libc 需要与构建机器兼容。解压后运行 `start.sh`，Windows 使用 `start.cmd`；目录可以整体移动，不依赖原仓库或同级插件路径。
