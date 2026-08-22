@@ -28,6 +28,7 @@
     "project-mcp/lib",
     "project-mcp/src",
     "profile-config.mjs",
+    "session-persistence-jsonl-readonly.mjs",
     "startup-diagnostics.mjs",
     "web-context-path.mjs",
     "web-crypto-polyfill.mjs",

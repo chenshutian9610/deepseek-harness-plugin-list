@@ -11,11 +11,13 @@ import { applyEntryPatches } from '@deepseek-ai/cordis-plugin-include'
 import { DEFAULT_MAX_IMAGE_BYTES, DEFAULT_MAX_IMAGE_DIMENSION } from '@deepseek-ai/dsh-attachment-local'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import LlmRuntime, { resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
+import { packChunkRuns } from '@deepseek-ai/dsh-session'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as LanAuth from './lan-auth/index.mjs'
 import * as LanSettings from './lan-settings.mjs'
 import CustomProviders, { CustomProviderAdapter } from './llm-custom-providers.mjs'
 import { dedupeProfilePatches, loadWebProfilePatches } from './profile-config.mjs'
+import { readOnlyHistoryPrefix } from './session-persistence-jsonl-readonly.mjs'
 import { renderStartupError } from './startup-diagnostics.mjs'
 import { normalizeContextPath, rewriteContextBody } from './web-context-path.mjs'
 import { injectWebCryptoPolyfill, WEB_CRYPTO_POLYFILL } from './web-crypto-polyfill.mjs'
@@ -60,6 +62,7 @@ assert.ok(config.includes("name: './web-title.mjs'"), 'missing custom browser ti
 assert.ok(config.includes("name: './web-startup.mjs'"), 'missing network-capable web startup provider')
 assert.ok(config.includes('openBrowser: false'), 'standalone Web must not auto-open a browser')
 assert.ok(config.includes("name: './project-mcp/lib/index.js'"), 'missing built-in project MCP provider')
+assert.ok(config.includes("name: './session-persistence-jsonl-readonly.mjs'"), 'missing corrupt-history read-only fallback')
 
 for (const plugin of [
   '@deepseek-ai/dsh-sandbox-local',
@@ -107,6 +110,7 @@ assert.equal(DEFAULT_MAX_IMAGE_BYTES, 3.5 * 1024 * 1024, 'rc.8 attachment byte l
 assert.equal(DEFAULT_MAX_IMAGE_DIMENSION, 2_000, 'rc.8 attachment dimension drift must stay explicit')
 assert.equal(resolveRetryPolicy(undefined, 'deepseek-harness-web rc.8 defaults').maxRetries, 5, 'rc.8 retry drift must stay explicit')
 assert.ok(manifest.files.includes('profile-config.mjs'))
+assert.ok(manifest.files.includes('session-persistence-jsonl-readonly.mjs'))
 assert.ok(manifest.files.includes('startup-diagnostics.mjs'))
 assert.ok(manifest.files.includes('web-context-path.mjs'))
 assert.ok(manifest.files.includes('web-title.mjs'))
@@ -117,6 +121,32 @@ assert.ok(authClient.includes("id: 'deepseek-harness-web-lan-auth'"))
 assert.ok(projectMcpSource.includes("from './mcp-client/index.ts'"), 'project MCP must use the Web-owned MCP client')
 assert.ok(!projectMcpSource.includes("from '@deepseek-ai/dsh-mcp-client'"), 'project MCP must not import the official MCP client package')
 assert.ok(mcpClientSource.includes('const reservationOwner = ctx.agent ?? ctx.root'), 'MCP client reservation must be agent-scoped')
+
+const historyHeader = JSON.stringify({ version: 0, id: 'session-readonly-test', createdAt: 1, cwd: '/tmp' })
+const historyEvents = [
+  { type: 'turn/start', seq: 0, time: 2, data: { turn: 0 } },
+  { type: 'turn/end', seq: 1, time: 3, data: { turn: 0 } },
+  { type: 'turn/start', seq: 2, time: 4, data: { turn: 1 } },
+]
+const duplicateBranch = { type: 'turn/start', seq: 1, time: 5, data: { turn: 1 } }
+const readOnlyPrefix = readOnlyHistoryPrefix(`${historyHeader}\n${historyEvents.map(event => JSON.stringify(event)).join('\n')}\n${JSON.stringify(duplicateBranch)}\n`)
+assert.deepEqual(readOnlyPrefix.map(event => event.seq), [0, 1], 'read-only fallback must stop at the last complete turn before a seq gap')
+
+const packedHistory = packChunkRuns([
+  { type: 'assistant/chunk', seq: 0, time: 10, data: { turn: 0, step: 0, chunk: { type: 'text-delta', text: 'a' } } },
+  { type: 'assistant/chunk', seq: 1, time: 11, data: { turn: 0, step: 0, chunk: { type: 'text-delta', text: 'b' } } },
+  { type: 'turn/end', seq: 2, time: 12, data: { turn: 0 } },
+])
+assert.deepEqual(
+  readOnlyHistoryPrefix(`${historyHeader}\n${packedHistory.map(record => JSON.stringify(record)).join('\n')}\n`).map(event => event.seq),
+  [0, 1, 2],
+  'read-only fallback must decode packed chunk rows',
+)
+assert.deepEqual(
+  readOnlyHistoryPrefix(`${historyHeader}\n${JSON.stringify(historyEvents[0])}\n{bad json}\n`).map(event => event.seq),
+  [],
+  'read-only fallback must not expose an incomplete turn',
+)
 
 const nestedStartupFailure = new Error('deepseek-harness-web: plugin tree failed to load: loader entries failed to apply', {
   cause: new AggregateError([

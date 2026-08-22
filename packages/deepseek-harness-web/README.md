@@ -50,6 +50,8 @@ flowchart TB
 
 会话内容搜索使用 `@deepseek-ai/dsh-session-query-sqlite` 的内存 FTS5 索引，并以 `openAt: first-search` 延迟到首次搜索时加载和对账已有 JSONL 会话；搜索功能因此可用，同时不会增加未使用搜索时的启动开销。
 
+损坏的 JSONL 会话仍保持严格的续写保护：如果冷历史读取因 committed region 中的序号缺口或不可解析记录失败，Web 历史接口会尝试只读降级，按原始 artifact 从头解析到首个异常，并且只展示此前最后一个完整 `turn/end` 之前的连续记录。它不会跳过重复分支、修改日志、执行恢复、发布 Session 或允许继续对话；如果异常前没有完整轮次，仍返回原始加载错误。
+
 启动器默认以 `NODE_USE_ENV_PROXY=1` 重新启动实际服务进程，因此 DeepSeek、自定义 Provider 和模型发现使用的 Node `fetch` 会自动遵循启动环境中的 `HTTP_PROXY`、`HTTPS_PROXY` 与 `NO_PROXY`。显式设置 `NODE_USE_ENV_PROXY=0` 可以关闭该行为。
 
 宿主平面负责 Web/RPC 接口和共享注册表；内置 presets 添加面向各会话的工具与行为。工具直接使用本地 Bash/PowerShell/文件系统 providers；Shell 执行、文件系统搜索、后台任务和持久终端共用官方 `dsh-subprocess-local`，由它负责普通进程与 PTY 的清理、取消、进程树和有界输出生命周期。
