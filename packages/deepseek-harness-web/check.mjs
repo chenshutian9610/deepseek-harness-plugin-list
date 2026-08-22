@@ -199,7 +199,7 @@ try {
   await rm(profileRoot, { recursive: true, force: true })
 }
 
-assert.equal(normalizeContextPath(), '/dsh')
+assert.equal(normalizeContextPath(), '')
 assert.equal(normalizeContextPath('/'), '')
 assert.equal(normalizeContextPath('/team/dsh'), '/team/dsh')
 assert.throws(() => normalizeContextPath('dsh'), /absolute path/)
@@ -240,7 +240,7 @@ assert.deepEqual(startupCtx.get('webStartup'), {
   host: '0.0.0.0',
   port: 0,
   trustedHosts: ['harness.example.com'],
-  contextPath: '/dsh',
+  contextPath: '/',
   title: '我的 AI 助手',
   authProxyHost: 'dsh-auth.invalid',
   allowRemoteSettings: true,

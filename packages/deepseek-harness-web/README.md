@@ -140,14 +140,14 @@ npm install --omit=dev
 DSH_HOME=/tmp/deepseek-harness-web-home DEEPSEEK_API_KEY=... npm start
 ```
 
-默认仍仅监听回环地址，并将 Web UI 挂载在 `/dsh`：
+默认仍仅监听回环地址，并将 Web UI 挂载在根路径 `/`：
 
 ```sh
 npm start -- --host 127.0.0.1 --port 3081
-# 访问 http://127.0.0.1:3081/dsh/
+# 访问 http://127.0.0.1:3081/
 ```
 
-context path 可通过 `--context-path` 调整；传 `/` 可恢复根路径挂载：
+context path 可通过 `--context-path` 调整；未指定时默认为 `/`：
 
 ```sh
 npm start -- --context-path /team/dsh
@@ -180,7 +180,7 @@ npm ci \
   --foreground-scripts
 ```
 
-首次启动后，先在服务器本机打开 `http://127.0.0.1:3081/dsh/`，进入“设置 → 通用设置”，配置至少 8 位的“局域网登录密码”。回环地址始终免登录；通过局域网 IP 或域名访问时只显示密码输入框。未配置密码时，局域网访问会被拒绝，并提示回到本机完成配置。
+首次启动后，先在服务器本机打开 `http://127.0.0.1:3081/`，进入“设置 → 通用设置”，配置至少 8 位的“局域网登录密码”。回环地址始终免登录；通过局域网 IP 或域名访问时只显示密码输入框。未配置密码时，局域网访问会被拒绝，并提示回到本机完成配置。
 
 密码通过现有 credentials provider 以 `DSH_LAN_PASSWORD` 保存到 owner-only 的 `$DSH_HOME/.credentials.yaml`，不会通过读取接口返回；也可以在启动环境中设置同名变量，此时设置页面只显示已配置状态而不能覆盖它。登录成功后会签发 7 天有效的 HttpOnly、SameSite=Strict 进程内会话；修改密码或重启服务会使已有会话失效。
 

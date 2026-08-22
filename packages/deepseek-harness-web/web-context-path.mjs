@@ -1,4 +1,4 @@
-const DEFAULT_CONTEXT_PATH = '/dsh'
+const DEFAULT_CONTEXT_PATH = '/'
 const ROOT_RESOURCE_PATHS = ['/api', '/auth', '/assets', '/plugins', '/web-terminal', '/favicon.svg', '/manifest.webmanifest']
 
 export const name = 'web-context-path'
