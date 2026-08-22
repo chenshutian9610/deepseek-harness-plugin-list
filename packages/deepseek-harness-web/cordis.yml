@@ -388,6 +388,10 @@
   name: 'deepseek-harness-web-lan-auth'
   inject:
     - webStartup
+- id: web-context-path
+  name: './web-context-path.mjs'
+  inject:
+    - webStartup
 - id: web-crypto-polyfill
   name: './web-crypto-polyfill.mjs'
 - id: web-mobile-style

@@ -17,6 +17,7 @@ import * as LanSettings from './lan-settings.mjs'
 import CustomProviders, { CustomProviderAdapter } from './llm-custom-providers.mjs'
 import { dedupeProfilePatches, loadWebProfilePatches } from './profile-config.mjs'
 import { renderStartupError } from './startup-diagnostics.mjs'
+import { normalizeContextPath, rewriteContextBody } from './web-context-path.mjs'
 import { injectWebCryptoPolyfill, WEB_CRYPTO_POLYFILL } from './web-crypto-polyfill.mjs'
 import * as WebStartup from './web-startup.mjs'
 
@@ -52,6 +53,7 @@ assert.ok(config.includes("name: 'deepseek-harness-web-lan-auth'"), 'missing LAN
 assert.ok(config.includes('ctx.webStartup.authProxyHost'), 'missing authenticated arbitrary-domain bridge authority')
 assert.ok(config.includes("name: '@deepseek-ai/dsh-subprocess-local'"), 'missing PTY-capable local subprocess provider')
 assert.ok(config.includes("name: './llm-custom-providers.mjs'"), 'missing custom LLM provider')
+assert.ok(config.includes("name: './web-context-path.mjs'"), 'missing Web context-path provider')
 assert.ok(config.includes("name: './web-crypto-polyfill.mjs'"), 'missing insecure-origin Web Crypto compatibility')
 assert.ok(config.includes("name: './web-startup.mjs'"), 'missing network-capable web startup provider')
 assert.ok(config.includes('openBrowser: false'), 'standalone Web must not auto-open a browser')
@@ -104,6 +106,7 @@ assert.equal(DEFAULT_MAX_IMAGE_DIMENSION, 2_000, 'rc.8 attachment dimension drif
 assert.equal(resolveRetryPolicy(undefined, 'deepseek-harness-web rc.8 defaults').maxRetries, 5, 'rc.8 retry drift must stay explicit')
 assert.ok(manifest.files.includes('profile-config.mjs'))
 assert.ok(manifest.files.includes('startup-diagnostics.mjs'))
+assert.ok(manifest.files.includes('web-context-path.mjs'))
 assert.ok(manifest.files.includes('lan-auth'))
 assert.ok(manifest.files.includes('project-mcp/lib'))
 assert.ok(manifest.files.includes('project-mcp/src'))
@@ -193,6 +196,19 @@ try {
   await rm(profileRoot, { recursive: true, force: true })
 }
 
+assert.equal(normalizeContextPath(), '/dsh')
+assert.equal(normalizeContextPath('/'), '')
+assert.equal(normalizeContextPath('/team/dsh'), '/team/dsh')
+assert.throws(() => normalizeContextPath('dsh'), /absolute path/)
+assert.throws(() => normalizeContextPath('/dsh/'), /trailing slash/)
+const contextualHtml = rewriteContextBody(Buffer.from('<head><link href="/assets/app.css"><script src="/plugins/a/client.js"></script></head>'), 'text/html; charset=utf-8', '/dsh').toString()
+assert.match(contextualHtml, /data-web-context-path/)
+assert.match(contextualHtml, /href="\/dsh\/assets\/app\.css"/)
+assert.match(contextualHtml, /src="\/dsh\/plugins\/a\/client\.js"/)
+assert.equal(rewriteContextBody(Buffer.from('a{src:url(/assets/font.woff2)}'), 'text/css', '/dsh').toString(), 'a{src:url(/dsh/assets/font.woff2)}')
+const contextualManifest = JSON.parse(rewriteContextBody(Buffer.from('{"id":"/","start_url":"/","scope":"/","icons":[{"src":"/favicon.svg"}]}'), 'application/manifest+json', '/dsh'))
+assert.deepEqual(contextualManifest, { id: '/dsh/', start_url: '/dsh/', scope: '/dsh/', icons: [{ src: '/dsh/favicon.svg' }] })
+
 const cryptoContext = {
   crypto: { getRandomValues: bytes => bytes.fill(0) },
 }
@@ -215,6 +231,7 @@ assert.deepEqual(startupCtx.get('webStartup'), {
   host: '0.0.0.0',
   port: 0,
   trustedHosts: ['harness.example.com'],
+  contextPath: '/dsh',
   authProxyHost: 'dsh-auth.invalid',
   allowRemoteSettings: true,
 })

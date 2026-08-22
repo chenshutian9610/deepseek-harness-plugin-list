@@ -29,6 +29,7 @@
     "project-mcp/src",
     "profile-config.mjs",
     "startup-diagnostics.mjs",
+    "web-context-path.mjs",
     "web-crypto-polyfill.mjs",
     "web-mobile-style.mjs",
     "web-startup.mjs"

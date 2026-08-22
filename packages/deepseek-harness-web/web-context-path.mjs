@@ -36,7 +36,7 @@ async function stripRequestContext(req, contextPath, next) {
 
 function browserBootstrap(contextPath) {
   const roots = JSON.stringify(ROOT_RESOURCE_PATHS)
-  return `<script data-web-context-path>(()=>{const base=${JSON.stringify(contextPath)},roots=${roots};window.__DSH_CONTEXT_PATH__=base;const map=input=>{try{const url=input instanceof URL?new URL(input.href):new URL(String(input),location.href);if(url.origin!==location.origin||url.pathname===base||url.pathname.startsWith(base+'/'))return input;if(!roots.some(root=>url.pathname===root||url.pathname.startsWith(root+'/')))return input;url.pathname=base+url.pathname;return input instanceof URL?url:url.href}catch{return input}};const nativeFetch=window.fetch.bind(window);window.fetch=(input,init)=>nativeFetch(map(input),init);const NativeWebSocket=window.WebSocket;window.WebSocket=class extends NativeWebSocket{constructor(url,protocols){super(map(url),protocols)}};Object.defineProperties(window.WebSocket,{CONNECTING:{value:NativeWebSocket.CONNECTING},OPEN:{value:NativeWebSocket.OPEN},CLOSING:{value:NativeWebSocket.CLOSING},CLOSED:{value:NativeWebSocket.CLOSED}})})()</script>`
+  return `<script data-web-context-path>(()=>{const base=${JSON.stringify(contextPath)},roots=${roots};window.__DSH_CONTEXT_PATH__=base;const map=input=>{try{const url=input instanceof URL?new URL(input.href):new URL(String(input),location.href);if(url.host!==location.host||url.pathname===base||url.pathname.startsWith(base+'/'))return input;if(!roots.some(root=>url.pathname===root||url.pathname.startsWith(root+'/')))return input;url.pathname=base+url.pathname;return input instanceof URL?url:url.href}catch{return input}};const nativeFetch=window.fetch.bind(window);window.fetch=(input,init)=>nativeFetch(map(input),init);const NativeWebSocket=window.WebSocket;window.WebSocket=class extends NativeWebSocket{constructor(url,protocols){if(protocols===undefined)super(map(url));else super(map(url),protocols)}};Object.defineProperties(window.WebSocket,{CONNECTING:{value:NativeWebSocket.CONNECTING},OPEN:{value:NativeWebSocket.OPEN},CLOSING:{value:NativeWebSocket.CLOSING},CLOSED:{value:NativeWebSocket.CLOSED}});const NativeEventSource=window.EventSource;if(NativeEventSource)window.EventSource=class extends NativeEventSource{constructor(url,options){if(options===undefined)super(map(url));else super(map(url),options)}}})()</script>`
 }
 
 export function rewriteContextBody(body, contentType, contextPath) {
@@ -150,7 +150,7 @@ export function apply(ctx) {
         table.delete(path)
         const wrapped = wrapRoute(route)
         table.set(wrapped.path, wrapped)
-        registrations.push({ table, path: wrapped.path })
+        registrations.push({ table, path: wrapped.path, originalPath: path, originalRoute: route, wrapped })
       }
     }
     for (const [path, route] of [...server.upgrades]) {
@@ -167,16 +167,22 @@ export function apply(ctx) {
       res.writeHead(308, { location, 'cache-control': 'no-store' })
       res.end()
     }
-    const disposeRoot = originals.register.call(server, { kind: 'exact', path: '/', handler: redirect(`${contextPath}/`) })
-    const disposeContextRoot = originals.register.call(server, { kind: 'exact', path: contextPath, handler: redirect(`${contextPath}/`) })
+    const rootRoute = { kind: 'exact', path: '/', handler: redirect(`${contextPath}/`) }
+    const contextRootRoute = { kind: 'exact', path: contextPath, handler: redirect(`${contextPath}/`) }
+    server.exact.set(rootRoute.path, rootRoute)
+    server.exact.set(contextRootRoute.path, contextRootRoute)
 
     return () => {
-      disposeContextRoot()
-      disposeRoot()
+      if (server.exact.get(contextRootRoute.path) === contextRootRoute) server.exact.delete(contextRootRoute.path)
+      if (server.exact.get(rootRoute.path) === rootRoute) server.exact.delete(rootRoute.path)
       if (server.register === contextualRegister) server.register = originals.register
       if (server.registerFallback === contextualFallback) server.registerFallback = originals.registerFallback
       if (server.registerUpgrade === contextualUpgrade) server.registerUpgrade = originals.registerUpgrade
-      for (const item of registrations) item.table.delete(item.path)
+      for (const item of registrations) {
+        if (item.table.get(item.path) !== item.wrapped) continue
+        item.table.delete(item.path)
+        item.table.set(item.originalPath, item.originalRoute)
+      }
     }
   }, `Web context path ${contextPath}`)
 }

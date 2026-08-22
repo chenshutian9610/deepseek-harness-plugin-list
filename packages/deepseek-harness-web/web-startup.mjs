@@ -13,6 +13,7 @@ export function apply(ctx) {
     .option('--host <host>', 'bind host (127.0.0.1 or 0.0.0.0)')
     .option('--port <port>', 'listen port; pass 0 to let the OS pick a free one')
     .option('--trusted-host <authority...>', 'legacy explicit authority (no longer required for authenticated same-origin domains)')
+    .option('--context-path <path>', 'URL context path; use / to disable the default /dsh prefix', '/dsh')
     .option('--allow-remote-settings', 'allow authenticated trusted LAN clients to manage settings and credentials')
 
   program.action(() => {
@@ -24,6 +25,7 @@ export function apply(ctx) {
       ...(options.host === undefined ? {} : { host: options.host }),
       ...(options.port === undefined ? {} : { port: Number(options.port) }),
       trustedHosts: options.trustedHost ?? [],
+      contextPath: options.contextPath,
       authProxyHost: AUTH_PROXY_HOST,
       allowRemoteSettings: options.allowRemoteSettings ?? false,
     })
