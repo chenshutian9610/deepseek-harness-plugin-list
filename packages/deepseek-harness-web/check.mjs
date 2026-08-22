@@ -17,6 +17,7 @@ import * as LanAuth from './lan-auth/index.mjs'
 import * as LanSettings from './lan-settings.mjs'
 import CustomProviders, { CustomProviderAdapter } from './llm-custom-providers.mjs'
 import { dedupeProfilePatches, loadWebProfilePatches } from './profile-config.mjs'
+import { patchRemoteSettingsSource } from './patch-remote-settings-client.mjs'
 import { READ_ONLY_HISTORY_EVENT, readOnlyHistoryPrefix } from './session-persistence-jsonl-readonly.mjs'
 import { renderStartupError } from './startup-diagnostics.mjs'
 import { normalizeContextPath, rewriteContextBody } from './web-context-path.mjs'
@@ -53,6 +54,7 @@ for (const plugin of [
   '@deepseek-ai/dsh-fs-local',
 ]) assert.ok(config.includes(`name: '${plugin}'`), `missing ${plugin}`)
 assert.ok(config.includes("name: './lan-settings.mjs'"), 'missing opt-in LAN settings provider')
+assert.ok(manifest.files.includes('patch-remote-settings-client.mjs'), 'missing packaged remote settings client patch')
 assert.ok(config.includes("name: 'deepseek-harness-web-lan-auth'"), 'missing LAN authentication provider')
 assert.ok(config.includes('ctx.webStartup.authProxyHost'), 'missing authenticated arbitrary-domain bridge authority')
 assert.ok(config.includes("name: '@deepseek-ai/dsh-subprocess-local'"), 'missing PTY-capable local subprocess provider')
@@ -259,6 +261,13 @@ runInNewContext(WEB_CRYPTO_POLYFILL, nativeCryptoContext)
 assert.equal(nativeCryptoContext.crypto.randomUUID(), 'native')
 const polyfilledIndex = injectWebCryptoPolyfill('<head><script type="module"></script>')
 assert.ok(polyfilledIndex.indexOf('data-web-crypto-polyfill') < polyfilledIndex.indexOf('type="module"'))
+const remoteSettingsIndex = LanSettings.injectRemoteSettingsCapability('<head><script type="module"></script>')
+assert.ok(remoteSettingsIndex.indexOf('data-remote-settings-capability') < remoteSettingsIndex.indexOf('type="module"'))
+assert.equal(runInNewContext(`${LanSettings.REMOTE_SETTINGS_BOOTSTRAP};globalThis.__DSH_REMOTE_SETTINGS__`, {}), true)
+const settingsGate = 'connection.isLoopback ? "host" : "memory"'
+const patchedSettings = patchRemoteSettingsSource(`${settingsGate}\n${settingsGate}`)
+assert.equal(patchedSettings.split('__DSH_REMOTE_SETTINGS__').length - 1, 2)
+assert.equal(patchRemoteSettingsSource(patchedSettings), patchedSettings)
 assert.match(injectProductTitle('<head><title>DeepSeek Harness</title></head>', '我的 AI 助手'), /data-web-product-title/)
 assert.match(createTitleBootstrap('我的 AI 助手'), /我的 AI 助手/)
 assert.doesNotThrow(() => new Function(createTitleBootstrap('</script><script>bad()</script>')))
@@ -292,7 +301,13 @@ const lanRoutes = []
 LanSettings.apply({
   apiProxy: {},
   webRuntime: { trustedHosts: ['192.168.1.8'] },
-  webServer: { register(route) { lanRoutes.push(route); return () => {} } },
+  webServer: {
+    tapIndex(transform) {
+      assert.match(transform('<head></head>'), /data-remote-settings-capability/)
+      return () => {}
+    },
+    register(route) { lanRoutes.push(route); return () => {} },
+  },
   effect(setup) { setup() },
 }, { enabled: true })
 assert.ok(lanRoutes.every(route => route.kind === 'exact'))

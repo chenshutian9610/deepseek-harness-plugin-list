@@ -20,6 +20,7 @@ if (process.env.NODE_USE_ENV_PROXY === undefined && !process.execArgv.includes('
     { provideCmdline },
     { DSH_LAUNCH_ENVIRONMENT_KEY },
     { loadWebProfilePatches },
+    { patchRemoteSettingsClient },
     { renderStartupError },
   ] = await Promise.all([
     import('node:url'),
@@ -27,9 +28,11 @@ if (process.env.NODE_USE_ENV_PROXY === undefined && !process.execArgv.includes('
     import('@deepseek-ai/dsh-cmdline'),
     import('@deepseek-ai/dsh-launch-environment'),
     import('./profile-config.mjs'),
+    import('./patch-remote-settings-client.mjs'),
     import('./startup-diagnostics.mjs'),
   ])
   const name = 'deepseek-harness-web'
+  await patchRemoteSettingsClient()
   const configPath = fileURLToPath(new URL('./cordis.yml', import.meta.url))
   const installAnchor = fileURLToPath(new URL('./package.json', import.meta.url))
   const moduleBaseUrl = new URL('./', import.meta.url).href

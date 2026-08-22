@@ -64,7 +64,7 @@ flowchart TB
 
 ## 自定义模型 Providers
 
-Models 页面可以新增任意 Provider 路由，协议限于 `openai-completions`、`openai-responses` 和 `anthropic-messages`。默认只有回环地址可以访问该页面；以 `--allow-remote-settings` 启动后，可信局域网客户端也可以使用。每条路由必须声明 Provider ID、显示名称、API 协议、base URL 和至少一个模型。API key 通过现有只写 credentials 服务保存；也支持无需密钥的自定义端点。发行包不预设官方 Provider，也不继承模型 catalog。一个未激活的 `custom-provider` 模板只用于让 Web 表单能够访问自定义 Provider namespace；除非用户配置它，否则不会注册任何模型路由。
+Models 页面可以新增任意 Provider 路由，协议限于 `openai-completions`、`openai-responses` 和 `anthropic-messages`。默认只有回环地址可以访问该页面；以 `--allow-remote-settings` 启动后，经过密码认证的同源局域网客户端也会启用 Host settings mirror，并可以读取和修改模型设置。每条路由必须声明 Provider ID、显示名称、API 协议、base URL 和至少一个模型。API key 通过现有只写 credentials 服务保存；也支持无需密钥的自定义端点。发行包不预设官方 Provider，也不继承模型 catalog。一个未激活的 `custom-provider` 模板只用于让 Web 表单能够访问自定义 Provider namespace；除非用户配置它，否则不会注册任何模型路由。
 
 等价的 settings 格式如下：
 

@@ -15,6 +15,12 @@ const MAX_BODY_BYTES = 4 * 1024 * 1024
 export const name = 'lan-settings'
 export const inject = ['apiProxy', 'webRuntime', 'webServer']
 
+export const REMOTE_SETTINGS_BOOTSTRAP = 'globalThis.__DSH_REMOTE_SETTINGS__=true'
+
+export function injectRemoteSettingsCapability(html) {
+  return html.replace('<head>', `<head><script data-remote-settings-capability>${REMOTE_SETTINGS_BOOTSTRAP}</script>`)
+}
+
 function parseAuthority(value) {
   try {
     return new URL(`http://${value}`)
@@ -123,7 +129,9 @@ export function apply(ctx, config = {}) {
   const trustedHosts = [...ctx.webRuntime.trustedHosts]
   const fetchHandler = toFetchHandler(ctx.apiProxy)
   ctx.effect(() => {
-    const disposers = METHODS.map(method => ctx.webServer.register({
+    const disposers = [
+      ctx.webServer.tapIndex(injectRemoteSettingsCapability),
+      ...METHODS.map(method => ctx.webServer.register({
       kind: 'exact',
       path: `/api/${method}`,
       handler: async (req, res) => {
@@ -133,7 +141,8 @@ export function apply(ctx, config = {}) {
         }
         await bridge(req, res, fetchHandler)
       },
-    }))
+      })),
+    ]
     return () => {
       for (const dispose of disposers.reverse()) dispose()
     }
