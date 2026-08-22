@@ -6,7 +6,7 @@ export const PROCESS_DETAILS_STORAGE_KEY = 'dsh.chat.processDetails.visible'
 /** Declare the independently persisted process-detail preference for each session. */
 export function createProcessDetailsStore() {
   return defineStore({
-    init: () => ({ visible: true }),
+    init: () => ({ visible: false }),
     persist: PROCESS_DETAILS_STORAGE_KEY,
     actions: {
       setVisible: (state, visible: boolean) => { state.visible = visible },

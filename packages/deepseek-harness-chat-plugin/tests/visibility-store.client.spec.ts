@@ -4,15 +4,15 @@ import { installMemoryStorage } from './storage.ts'
 describe('process-detail visibility store', () => {
   beforeEach(() => { installMemoryStorage() })
 
-  it('defaults to visible and persists independently by session', () => {
+  it('defaults to hidden and persists independently by session', () => {
     const handle = createProcessDetailsStore()
     const first = handle.create('session-a')
     const second = handle.create('session-b')
-    first.actions.setVisible(false)
+    first.actions.setVisible(true)
 
-    expect(first.getSnapshot().visible).toBe(false)
-    expect(second.getSnapshot().visible).toBe(true)
-    expect(localStorage.getItem(`${PROCESS_DETAILS_STORAGE_KEY}.session-a`)).toBe('{"visible":false}')
-    expect(handle.create('session-a').getSnapshot().visible).toBe(false)
+    expect(first.getSnapshot().visible).toBe(true)
+    expect(second.getSnapshot().visible).toBe(false)
+    expect(localStorage.getItem(`${PROCESS_DETAILS_STORAGE_KEY}.session-a`)).toBe('{"visible":true}')
+    expect(handle.create('session-a').getSnapshot().visible).toBe(true)
   })
 })
