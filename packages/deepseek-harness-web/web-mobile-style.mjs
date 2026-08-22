@@ -205,6 +205,56 @@ const MOBILE_STYLE = `
     font-size: 16px;
   }
 
+  /* The question composer replaces the normal input area. Keep its fixed
+     footer inside the card instead of letting the pager and actions compete
+     for one narrow row. */
+  body [data-question-key] {
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 6px 8px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  body [data-question-key] > section {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  body [data-question-key] > section > footer {
+    grid-template-areas:
+      'pager feedback'
+      'actions actions';
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px 12px;
+    min-width: 0;
+    padding: 0 10px;
+    display: grid;
+  }
+
+  body [data-question-key] > section > footer > :first-child {
+    grid-area: pager;
+  }
+
+  body [data-question-key] > section > footer > :nth-child(2) {
+    grid-area: feedback;
+    min-width: 0;
+  }
+
+  body [data-question-key] > section > footer > :last-child {
+    grid-area: actions;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    display: grid;
+  }
+
+  body [data-question-key] > section > footer > :last-child > button {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+
   body .oY77xG_row,
   body .T1PP_q_row {
     align-items: stretch;
