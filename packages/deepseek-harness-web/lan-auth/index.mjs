@@ -32,6 +32,14 @@ export function isLoopbackRequest(req) {
   return isLoopbackAddress(req.socket?.remoteAddress) && typeof req.headers.host === 'string' && isLoopbackHost(req.headers.host)
 }
 
+export function isSafeCrossSiteNavigation(req) {
+  return req.method === 'GET'
+    && req.headers.origin === undefined
+    && req.headers['sec-fetch-site'] === 'cross-site'
+    && req.headers['sec-fetch-mode'] === 'navigate'
+    && req.headers['sec-fetch-dest'] === 'document'
+}
+
 export function validatePassword(password) {
   return typeof password === 'string' && password.length >= 8 && Buffer.byteLength(password) <= MAX_PASSWORD_BYTES
 }
@@ -91,14 +99,18 @@ async function readJson(req) {
   }
 }
 
-function loginPage(configured, localUrl) {
+function escapeHtml(value) {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+}
+
+function loginPage(configured, localUrl, productTitle) {
   const setup = configured ? '' : `<p class="notice">尚未设置局域网密码。请先在本机打开 <a href="${localUrl}">${localUrl}</a>，进入“设置 → 通用设置”完成配置。</p>`
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>登录 · DeepSeek Harness</title>
+<title>登录 · ${escapeHtml(productTitle)}</title>
 <style>
 :root{color-scheme:light dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;background:#f5f7fb;color:#15171a}.card{width:min(400px,calc(100% - 32px));padding:32px;border:1px solid #dde2ea;border-radius:18px;background:#fff;box-shadow:0 16px 48px #1f293714}h1{margin:0 0 8px;font-size:24px}p{margin:0 0 24px;color:#606771;line-height:1.6}.notice{padding:12px;border-radius:10px;background:#fff5d8;color:#765800;font-size:14px}a{color:inherit}label{display:block;margin-bottom:8px;font-size:14px}input,button{width:100%;height:44px;border-radius:10px;font:inherit}input{padding:0 12px;border:1px solid #cfd5df;background:transparent;color:inherit}button{margin-top:16px;border:0;background:#3964fe;color:#fff;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.error{min-height:22px;margin:12px 0 0;color:#c62828;font-size:14px}@media(prefers-color-scheme:dark){body{background:#111318;color:#f1f3f5}.card{background:#1b1e24;border-color:#303641}p{color:#b7bec8}.notice{background:#3b321b;color:#f4d77a}input{border-color:#454c59}}
 </style>
@@ -150,7 +162,7 @@ export function apply(ctx) {
     throw new Error('lan-auth: the pinned webserver route registry shape changed')
   }
 
-  const accepted = req => isSameOriginRequest(req.headers)
+  const accepted = req => isSameOriginRequest(req.headers) || isSafeCrossSiteNavigation(req)
   const forward = async (req, next, preserveAuthority = false) => {
     if (preserveAuthority || isLoopbackRequest(req) || !isLoopbackHost(req.headers.host) && isTrustedLanRequest(req.headers, trustedHosts)) return next()
     const host = req.headers.host
@@ -193,7 +205,7 @@ export function apply(ctx) {
       return
     }
     const info = await describePassword()
-    send(res, 200, loginPage(info.configured, localUrl), {
+    send(res, 200, loginPage(info.configured, localUrl, ctx.webStartup.title), {
       'content-type': 'text/html; charset=utf-8',
       'content-security-policy': "default-src 'none'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
       'x-content-type-options': 'nosniff',

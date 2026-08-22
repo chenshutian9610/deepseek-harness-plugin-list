@@ -11,6 +11,9 @@ export type ProcessVisibilityKey =
   | 'favorite.add'
   | 'favorite.remove'
   | 'reply.toStart'
+  | 'notification.enable'
+  | 'notification.disable'
+  | 'notification.unsupported'
 
 /** Simplified Chinese dictionary. */
 export const zh: Record<ProcessVisibilityKey, string> = {
@@ -22,6 +25,9 @@ export const zh: Record<ProcessVisibilityKey, string> = {
   'favorite.add': '收藏此对话',
   'favorite.remove': '取消收藏此对话',
   'reply.toStart': '回到回复开头',
+  'notification.enable': '开启 AI 回复完成浏览器通知',
+  'notification.disable': '关闭 AI 回复完成浏览器通知',
+  'notification.unsupported': '当前浏览器或非安全来源不支持系统通知',
 }
 
 /** English dictionary. */
@@ -34,4 +40,7 @@ export const en: Record<ProcessVisibilityKey, string> = {
   'favorite.add': 'Favorite this conversation',
   'favorite.remove': 'Remove this conversation from favorites',
   'reply.toStart': 'Back to start of reply',
+  'notification.enable': 'Enable browser notifications for completed AI replies',
+  'notification.disable': 'Disable browser notifications for completed AI replies',
+  'notification.unsupported': 'System notifications require browser support and a secure origin',
 }

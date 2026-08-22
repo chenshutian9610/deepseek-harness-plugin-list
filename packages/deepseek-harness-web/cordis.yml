@@ -394,6 +394,10 @@
     - webStartup
 - id: web-crypto-polyfill
   name: './web-crypto-polyfill.mjs'
+- id: web-title
+  name: './web-title.mjs'
+  inject:
+    - webStartup
 - id: web-mobile-style
   name: './web-mobile-style.mjs'
 - id: web-runtime

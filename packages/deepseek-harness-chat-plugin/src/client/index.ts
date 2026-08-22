@@ -4,6 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import styles from './styles.css?inline'
+import { BrowserNotificationsButton } from './BrowserNotificationsButton.tsx'
 import { bindChatShortcuts } from './chat-shortcuts.ts'
 import { bindProcessDetailsVisibility } from './dom-visibility.ts'
 import { createFavoriteStore } from './favorite-store.ts'
@@ -75,5 +76,11 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       store: favoriteStore,
     }, FavoriteButton)
+    yield ctx.slots.register({
+      name: 'conversation.session.header.utilities',
+      id: 'chat-browser-notifications',
+      order: 10,
+      locale: NS,
+    }, BrowserNotificationsButton)
   })
 }

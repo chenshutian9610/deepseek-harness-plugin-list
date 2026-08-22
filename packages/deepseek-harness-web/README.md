@@ -93,7 +93,7 @@ Bash、PowerShell、文件系统和子进程操作直接在宿主机上运行。
 
 ## 移动端支持
 
-手机窄屏（宽度不超过 720px）会把收起后的侧栏控制栏移到会话顶部；展开侧栏时改为占满页面，而不再挤压会话区域，从列表选择会话后会自动收起。会话消息、输入框和工具栏使用更紧凑的间距，设置页改为全屏纵向布局，其分区导航可以横向滚动。触屏设备的低高度横屏也会使用同一布局。
+手机窄屏（宽度不超过 720px）会把收起后的侧栏控制栏移到会话顶部；展开侧栏时改为占满页面，而不再挤压会话区域，从列表选择会话后会自动收起。会话消息、输入框和工具栏使用更紧凑的间距，设置页改为全屏纵向布局，其分区导航可以横向滚动。触屏设备的低高度横屏也会使用同一布局。安装到主屏幕后的 PWA 首次顶层导航可能被移动浏览器标记为 `Sec-Fetch-Site: cross-site`；服务端仅对无 `Origin` 的 GET/document/navigate 请求放行到正常登录校验，跨站 API、表单提交与 WebSocket 仍会拒绝。
 
 <p align="center">
   <img src="./design/mobile-chat.png" alt="移动端会话页" width="320" />
@@ -123,7 +123,7 @@ npm run web_lan  # start_lan.sh：局域网可访问
 - `start.sh`：本地回环地址
 - `start_lan.sh`：局域网可访问
 
-如果 `$DSH_HOME/profiles/web/package.json` 已存在，通过 `dsh plugin --profile web` 安装的其他外部 bundle 会在重启后同时应用到本发行版。该 profile 及其依赖属于可信宿主代码。会话右上角的“过程详情”开关默认对新会话隐藏，并按会话持久化隐藏或显示工具调用、思考、上下文注入、压缩／重试与工作流运行等 Chat 内部过程节点；已有会话继续沿用各自保存的偏好，普通正文、状态、错误和独立“轨迹”视图不受影响。Web 终端插件现在可以通过已恢复的 PTY subprocess provider 创建终端。
+如果 `$DSH_HOME/profiles/web/package.json` 已存在，通过 `dsh plugin --profile web` 安装的其他外部 bundle 会在重启后同时应用到本发行版。该 profile 及其依赖属于可信宿主代码。会话右上角的“过程详情”开关默认对新会话隐藏，并按会话持久化隐藏或显示工具调用、思考、上下文注入、压缩／重试与工作流运行等 Chat 内部过程节点；已有会话继续沿用各自保存的偏好，普通正文、状态、错误和独立“轨迹”视图不受影响。同一区域的通知按钮可请求浏览器权限并持久化开关；页面处于后台或失焦时，AI 回复完成会发送系统通知，点击后打开对应会话。浏览器 Notification API 仅在受支持的安全来源（以及浏览器允许的回环地址）可用，普通 HTTP 局域网地址会保持禁用。Web 终端插件现在可以通过已恢复的 PTY subprocess provider 创建终端。
 
 项目根目录的 `dsh-lan.pm2.config.cjs` 提供等价的 PM2 配置，固定监听 `0.0.0.0:3081` 并开启远程设置：
 
@@ -153,6 +153,14 @@ context path 可通过 `--context-path` 调整；传 `/` 可恢复根路径挂�
 npm start -- --context-path /team/dsh
 npm start -- --context-path /
 ```
+
+浏览器产品标题可通过 `--title` 调整，默认仍为 `DeepSeek Harness`：
+
+```sh
+npm start -- --title "我的 AI 助手"
+```
+
+自定义标题会用于空闲页面和局域网登录页；选中会话后，浏览器标签显示为 `会话标题 — 我的 AI 助手`。标题会去除首尾空白，不能为空、不能包含控制字符，且最长为 200 个字符。
 
 启用 context path 时，页面、静态资源、插件 bundles、HTTP RPC、登录接口和 WebSocket 都使用同一前缀；访问 `/` 或不带末尾斜杠的 context path 会以 308 跳转到规范地址。
 

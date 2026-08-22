@@ -4,6 +4,7 @@ import type {
 import {
   FAVORITES_CHANGED_EVENT, FAVORITE_STORAGE_KEY, isFavoriteSession, setFavoriteSession,
 } from './favorite-store.ts'
+import { notifyReplyCompleted } from './browser-notifications.ts'
 
 export const UNREAD_STORAGE_KEY = 'dsh.chat.unreadSessions.v1'
 
@@ -49,6 +50,8 @@ export function bindUnreadNotifications(
   openSession: (id: SessionId) => void,
 ): () => void {
   const unread = loadUnread()
+  const initialState = sessions.getSnapshot()
+  const handledCompletions = new Set(initialState.ids.filter(id => initialState.byId[id]?.completed === true))
   let activeTab: 'workspaces' | 'favorites' = 'workspaces'
   try {
     if (localStorage.getItem(SIDEBAR_TAB_STORAGE_KEY) === 'favorites') activeTab = 'favorites'
@@ -331,11 +334,18 @@ export function bindUnreadNotifications(
     let changed = false
     for (const id of state.ids) {
       const session = state.byId[id]
-      if (session?.completed === true && id !== state.current && !unread.has(id)) {
-        unread.add(id)
-        changed = true
+      if (session?.completed === true && !handledCompletions.has(id)) {
+        handledCompletions.add(id)
+        if (id !== state.current) {
+          unread.add(id)
+          changed = true
+        }
+        notifyReplyCompleted(id, session.displayTitle, openSession)
       }
-      if (session?.running === true && unread.delete(id)) changed = true
+      if (session?.running === true) {
+        handledCompletions.delete(id)
+        if (unread.delete(id)) changed = true
+      }
     }
     if (state.current !== undefined && unread.delete(state.current)) changed = true
     if (state.phase === 'ready') {

@@ -32,7 +32,8 @@
     "web-context-path.mjs",
     "web-crypto-polyfill.mjs",
     "web-mobile-style.mjs",
-    "web-startup.mjs"
+    "web-startup.mjs",
+    "web-title.mjs"
   ],
   "engines": {
     "node": "^22.21.0 || >=24.0.0"

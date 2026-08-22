@@ -19,6 +19,7 @@ import { dedupeProfilePatches, loadWebProfilePatches } from './profile-config.mj
 import { renderStartupError } from './startup-diagnostics.mjs'
 import { normalizeContextPath, rewriteContextBody } from './web-context-path.mjs'
 import { injectWebCryptoPolyfill, WEB_CRYPTO_POLYFILL } from './web-crypto-polyfill.mjs'
+import { createTitleBootstrap, injectProductTitle } from './web-title.mjs'
 import * as WebStartup from './web-startup.mjs'
 
 const config = await readFile(new URL('./cordis.yml', import.meta.url), 'utf8')
@@ -55,6 +56,7 @@ assert.ok(config.includes("name: '@deepseek-ai/dsh-subprocess-local'"), 'missing
 assert.ok(config.includes("name: './llm-custom-providers.mjs'"), 'missing custom LLM provider')
 assert.ok(config.includes("name: './web-context-path.mjs'"), 'missing Web context-path provider')
 assert.ok(config.includes("name: './web-crypto-polyfill.mjs'"), 'missing insecure-origin Web Crypto compatibility')
+assert.ok(config.includes("name: './web-title.mjs'"), 'missing custom browser title provider')
 assert.ok(config.includes("name: './web-startup.mjs'"), 'missing network-capable web startup provider')
 assert.ok(config.includes('openBrowser: false'), 'standalone Web must not auto-open a browser')
 assert.ok(config.includes("name: './project-mcp/lib/index.js'"), 'missing built-in project MCP provider')
@@ -107,6 +109,7 @@ assert.equal(resolveRetryPolicy(undefined, 'deepseek-harness-web rc.8 defaults')
 assert.ok(manifest.files.includes('profile-config.mjs'))
 assert.ok(manifest.files.includes('startup-diagnostics.mjs'))
 assert.ok(manifest.files.includes('web-context-path.mjs'))
+assert.ok(manifest.files.includes('web-title.mjs'))
 assert.ok(manifest.files.includes('lan-auth'))
 assert.ok(manifest.files.includes('project-mcp/lib'))
 assert.ok(manifest.files.includes('project-mcp/src'))
@@ -219,10 +222,16 @@ runInNewContext(WEB_CRYPTO_POLYFILL, nativeCryptoContext)
 assert.equal(nativeCryptoContext.crypto.randomUUID(), 'native')
 const polyfilledIndex = injectWebCryptoPolyfill('<head><script type="module"></script>')
 assert.ok(polyfilledIndex.indexOf('data-web-crypto-polyfill') < polyfilledIndex.indexOf('type="module"'))
+assert.match(injectProductTitle('<head><title>DeepSeek Harness</title></head>', '我的 AI 助手'), /data-web-product-title/)
+assert.match(createTitleBootstrap('我的 AI 助手'), /我的 AI 助手/)
+assert.doesNotThrow(() => new Function(createTitleBootstrap('</script><script>bad()</script>')))
+assert.equal(WebStartup.normalizeProductTitle('  我的 AI 助手  '), '我的 AI 助手')
+assert.throws(() => WebStartup.normalizeProductTitle('   '), /must not be empty/)
+assert.throws(() => WebStartup.normalizeProductTitle('bad\ntitle'), /control characters/)
 
 const startupCtx = new Context()
 provideCmdline(startupCtx, {
-  args: ['--host', '0.0.0.0', '--port', '0', '--trusted-host', 'harness.example.com', '--allow-remote-settings'],
+  args: ['--host', '0.0.0.0', '--port', '0', '--trusted-host', 'harness.example.com', '--title', '我的 AI 助手', '--allow-remote-settings'],
   exit: code => assert.fail(`web startup unexpectedly requested exit ${code}`),
 })
 const startupFiber = await startupCtx.plugin(WebStartup)
@@ -232,6 +241,7 @@ assert.deepEqual(startupCtx.get('webStartup'), {
   port: 0,
   trustedHosts: ['harness.example.com'],
   contextPath: '/dsh',
+  title: '我的 AI 助手',
   authProxyHost: 'dsh-auth.invalid',
   allowRemoteSettings: true,
 })
@@ -259,6 +269,10 @@ await startupCtx.fiber.dispose()
 assert.equal(LanAuth.isLoopbackAddress('::1'), true)
 assert.equal(LanAuth.isLoopbackAddress('::ffff:127.0.0.1'), true)
 assert.equal(LanAuth.isLoopbackAddress('192.168.1.8'), false)
+assert.equal(LanAuth.isSafeCrossSiteNavigation({ method: 'GET', headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' } }), true)
+assert.equal(LanAuth.isSafeCrossSiteNavigation({ method: 'POST', headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' } }), false)
+assert.equal(LanAuth.isSafeCrossSiteNavigation({ method: 'GET', headers: { origin: 'http://evil.example', 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' } }), false)
+assert.equal(LanAuth.isSafeCrossSiteNavigation({ method: 'GET', headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'cors', 'sec-fetch-dest': 'empty' } }), false)
 assert.equal(LanAuth.validatePassword('1234567'), false)
 assert.equal(LanAuth.validatePassword('12345678'), true)
 
@@ -304,7 +318,7 @@ LanAuth.apply({
     set: async (_ref, value) => { authPassword = value },
   },
   webServer: authServer,
-  webStartup: { trustedHosts: [], authProxyHost: 'dsh-auth.invalid' },
+  webStartup: { trustedHosts: [], authProxyHost: 'dsh-auth.invalid', title: '我的 AI 助手' },
   effect(setup) { setup() },
   on() {},
 })
@@ -353,6 +367,27 @@ const remotePage = authResponse()
 await authRoutes.get('/protected').handler(authRequest('192.168.1.8', { ...domainHeaders, accept: 'text/html' }), remotePage)
 assert.equal(remotePage.status, 200)
 assert.match(remotePage.body, /局域网登录/)
+assert.match(remotePage.body, /<title>登录 · 我的 AI 助手<\/title>/)
+assert.equal(protectedCalls, 0)
+const installedPwaPage = authResponse()
+await authRoutes.get('/protected').handler(authRequest('192.168.1.8', {
+  host: 'unlisted.example:3081',
+  accept: 'text/html',
+  'sec-fetch-site': 'cross-site',
+  'sec-fetch-mode': 'navigate',
+  'sec-fetch-dest': 'document',
+}), installedPwaPage)
+assert.equal(installedPwaPage.status, 200)
+assert.match(installedPwaPage.body, /局域网登录/)
+assert.equal(protectedCalls, 0)
+const crossSiteApi = authResponse()
+await authRoutes.get('/protected').handler(authRequest('192.168.1.8', {
+  host: 'unlisted.example:3081',
+  'sec-fetch-site': 'cross-site',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-dest': 'empty',
+}), crossSiteApi)
+assert.equal(crossSiteApi.status, 403)
 assert.equal(protectedCalls, 0)
 const localPage = authResponse()
 await authRoutes.get('/protected').handler(authRequest('127.0.0.1'), localPage)
