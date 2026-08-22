@@ -3,6 +3,7 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { PROCESS_DETAILS_HIDDEN_ATTRIBUTE } from '../src/client/dom-visibility.ts'
 import { ProcessDetailsSwitch } from '../src/client/ProcessDetailsSwitch.tsx'
+import { ReadOnlySessionGuard } from '../src/client/ReadOnlySessionGuard.tsx'
 import { apply, inject } from '../src/client/index.ts'
 import { installMemoryStorage } from './storage.ts'
 
@@ -22,6 +23,10 @@ async function bench() {
   const declaration = declare(slots)
   ctx.provide('locale', {
     register: () => () => {},
+    bind: () => (key: string) => key,
+  } as never)
+  ctx.provide('conversation', {
+    blocks: { set: () => {} },
   } as never)
   ctx.provide('sessions', {
     list: {
@@ -43,10 +48,14 @@ async function bench() {
 describe('chat-process visibility browser plugin', () => {
   beforeEach(() => { installMemoryStorage() })
 
-  it('registers one Header utility and removes every owned resource on disposal', async () => {
+  it('registers Header utilities and removes every owned resource on disposal', async () => {
     const b = await bench()
-    expect(inject).toEqual(['slots', 'locale', 'sessions', 'workspaces'])
-    const entry = b.slots.entries('conversation.session.header.utilities')[0]
+    expect(inject).toEqual(['slots', 'locale', 'sessions', 'workspaces', 'conversation'])
+    const entries = b.slots.entries('conversation.session.header.utilities')
+    expect(entries).toHaveLength(4)
+    expect(entries[0]?.component).toBe(ReadOnlySessionGuard)
+    expect(entries[0]?.options).toMatchObject({ id: 'chat-readonly-session', order: -20 })
+    const entry = entries[1]
     expect(entry?.component).toBe(ProcessDetailsSwitch)
     expect(entry?.options).toMatchObject({ id: 'chat-process-visibility', order: -10 })
     expect(document.querySelectorAll('style[data-plugin="dsh-chat-process-visibility"]')).toHaveLength(1)

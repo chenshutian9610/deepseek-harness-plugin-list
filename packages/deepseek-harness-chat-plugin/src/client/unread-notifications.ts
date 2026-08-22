@@ -340,7 +340,7 @@ export function bindUnreadNotifications(
           unread.add(id)
           changed = true
         }
-        notifyReplyCompleted(id, session.displayTitle, openSession)
+        void notifyReplyCompleted(id, session.displayTitle)
       }
       if (session?.running === true) {
         handledCompletions.delete(id)

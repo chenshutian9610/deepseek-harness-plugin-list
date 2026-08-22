@@ -9,6 +9,8 @@ export const name = 'chat-process-visibility'
 export const inject = ['webServer', 'sessionQuery', 'sessions']
 
 const SEARCH_PATH = '/api/chat.session-search'
+export const NOTIFICATION_WORKER_PATH = '/chat-notifications-sw.js'
+export const NOTIFICATION_WORKER_SOURCE = `self.addEventListener('message',event=>{const message=event.data;if(message?.type!=='dsh-chat-notify-reply-completed')return;event.waitUntil(self.registration.showNotification(message.title,{body:message.body,tag:message.tag,data:{sessionId:message.sessionId}}))});self.addEventListener('notificationclick',event=>{event.notification.close();const sessionId=event.notification.data?.sessionId;event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(async windows=>{let target=windows.find(client=>client.url.startsWith(self.registration.scope));if(target===undefined)target=await clients.openWindow(self.registration.scope)??undefined;if(target!==undefined){await target.focus();target.postMessage({type:'dsh-chat-open-session',sessionId})}}))})`
 const MAX_BODY_BYTES = 4096
 const MAX_QUERY_LENGTH = 500
 const RESULT_LIMIT = 20
@@ -71,6 +73,23 @@ export function apply(ctx: Context): void {
     cache.set(sessionId, pending)
     return pending
   }
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: NOTIFICATION_WORKER_PATH,
+    handler: (req, res) => {
+      if (req.method !== 'GET') {
+        res.writeHead(405, { allow: 'GET' }).end()
+        return
+      }
+      res.writeHead(200, {
+        'cache-control': 'no-cache',
+        'content-type': 'text/javascript; charset=utf-8',
+        'service-worker-allowed': '/',
+      })
+      res.end(NOTIFICATION_WORKER_SOURCE)
+    },
+  }), 'chat browser notification service worker route')
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',

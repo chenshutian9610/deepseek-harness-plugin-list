@@ -54,6 +54,8 @@
   name: './llm-custom-providers.mjs'
 - id: session-persistence-jsonl
   name: './session-persistence-jsonl-readonly.mjs'
+  inject:
+    - sessionProjections
   config:
     root: !!js dshHomePath('sessions')
 - id: attachment-local

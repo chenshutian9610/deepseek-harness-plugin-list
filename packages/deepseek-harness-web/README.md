@@ -50,7 +50,7 @@ flowchart TB
 
 会话内容搜索使用 `@deepseek-ai/dsh-session-query-sqlite` 的内存 FTS5 索引，并以 `openAt: first-search` 延迟到首次搜索时加载和对账已有 JSONL 会话；搜索功能因此可用，同时不会增加未使用搜索时的启动开销。
 
-损坏的 JSONL 会话仍保持严格的续写保护：如果冷历史读取因 committed region 中的序号缺口或不可解析记录失败，Web 历史接口会尝试只读降级，按原始 artifact 从头解析到首个异常，并且只展示此前最后一个完整 `turn/end` 之前的连续记录。它不会跳过重复分支、修改日志、执行恢复、发布 Session 或允许继续对话；如果异常前没有完整轮次，仍返回原始加载错误。
+损坏的 JSONL 会话仍保持严格的续写保护：如果冷历史读取因 committed region 中的序号缺口或不可解析记录失败，Web 历史接口会尝试只读降级，按原始 artifact 从头解析到首个异常，并且只展示此前最后一个完整 `turn/end` 之前的连续记录。它不会跳过重复分支、修改日志、执行恢复、发布 Session 或允许继续对话；客户端会显示“只读”标记，聊天输入区及其中的命令、模式、模型选择和发送控件全部禁用。如果异常前没有完整轮次，仍返回原始加载错误。
 
 启动器默认以 `NODE_USE_ENV_PROXY=1` 重新启动实际服务进程，因此 DeepSeek、自定义 Provider 和模型发现使用的 Node `fetch` 会自动遵循启动环境中的 `HTTP_PROXY`、`HTTPS_PROXY` 与 `NO_PROXY`。显式设置 `NODE_USE_ENV_PROXY=0` 可以关闭该行为。
 
@@ -125,7 +125,7 @@ npm run web_lan  # start_lan.sh：局域网可访问
 - `start.sh`：本地回环地址
 - `start_lan.sh`：局域网可访问
 
-如果 `$DSH_HOME/profiles/web/package.json` 已存在，通过 `dsh plugin --profile web` 安装的其他外部 bundle 会在重启后同时应用到本发行版。该 profile 及其依赖属于可信宿主代码。会话右上角的“过程详情”开关默认对新会话隐藏，并按会话持久化隐藏或显示工具调用、思考、上下文注入、压缩／重试与工作流运行等 Chat 内部过程节点；已有会话继续沿用各自保存的偏好，普通正文、状态、错误和独立“轨迹”视图不受影响。同一区域的通知按钮可请求浏览器权限并持久化开关；页面处于后台或失焦时，AI 回复完成会发送系统通知，点击后打开对应会话。浏览器 Notification API 仅在受支持的安全来源（以及浏览器允许的回环地址）可用，普通 HTTP 局域网地址会保持禁用。Web 终端插件现在可以通过已恢复的 PTY subprocess provider 创建终端。
+如果 `$DSH_HOME/profiles/web/package.json` 已存在，通过 `dsh plugin --profile web` 安装的其他外部 bundle 会在重启后同时应用到本发行版。该 profile 及其依赖属于可信宿主代码。聊天记录超过一页时，本地聊天插件会在原生“加载更早”旁提供“加载全部”，逐页复用宿主分页与滚动锚点直到最早记录。会话右上角的“过程详情”开关默认对新会话隐藏，并按会话持久化隐藏或显示工具调用、思考、上下文注入、压缩／重试与工作流运行等 Chat 内部过程节点；已有会话继续沿用各自保存的偏好，普通正文、状态、错误和独立“轨迹”视图不受影响。同一区域的通知按钮可请求浏览器权限、注册应用 scope 内的 Service Worker 并持久化开关；页面处于后台或失焦时，AI 回复完成会通过 `showNotification()` 发送系统通知，点击后聚焦或打开页面并进入对应会话。该方式支持 Android Chrome，以及 iOS/iPadOS 16.4+ 中从主屏幕启动的 PWA。浏览器通知仍只在受支持的安全来源（以及浏览器允许的回环地址）可用，普通 HTTP 局域网地址会保持禁用。Web 终端插件现在可以通过已恢复的 PTY subprocess provider 创建终端。
 
 项目根目录的 `dsh-lan.pm2.config.cjs` 提供等价的 PM2 配置，固定监听 `0.0.0.0:3081` 并开启远程设置：
 

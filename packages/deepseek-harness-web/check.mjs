@@ -17,7 +17,7 @@ import * as LanAuth from './lan-auth/index.mjs'
 import * as LanSettings from './lan-settings.mjs'
 import CustomProviders, { CustomProviderAdapter } from './llm-custom-providers.mjs'
 import { dedupeProfilePatches, loadWebProfilePatches } from './profile-config.mjs'
-import { readOnlyHistoryPrefix } from './session-persistence-jsonl-readonly.mjs'
+import { READ_ONLY_HISTORY_EVENT, readOnlyHistoryPrefix } from './session-persistence-jsonl-readonly.mjs'
 import { renderStartupError } from './startup-diagnostics.mjs'
 import { normalizeContextPath, rewriteContextBody } from './web-context-path.mjs'
 import { injectWebCryptoPolyfill, WEB_CRYPTO_POLYFILL } from './web-crypto-polyfill.mjs'
@@ -63,6 +63,7 @@ assert.ok(config.includes("name: './web-startup.mjs'"), 'missing network-capable
 assert.ok(config.includes('openBrowser: false'), 'standalone Web must not auto-open a browser')
 assert.ok(config.includes("name: './project-mcp/lib/index.js'"), 'missing built-in project MCP provider')
 assert.ok(config.includes("name: './session-persistence-jsonl-readonly.mjs'"), 'missing corrupt-history read-only fallback')
+assert.ok(config.includes('    - sessionProjections'), 'read-only persistence fallback must wait for projection registry')
 
 for (const plugin of [
   '@deepseek-ai/dsh-sandbox-local',
@@ -131,6 +132,7 @@ const historyEvents = [
 const duplicateBranch = { type: 'turn/start', seq: 1, time: 5, data: { turn: 1 } }
 const readOnlyPrefix = readOnlyHistoryPrefix(`${historyHeader}\n${historyEvents.map(event => JSON.stringify(event)).join('\n')}\n${JSON.stringify(duplicateBranch)}\n`)
 assert.deepEqual(readOnlyPrefix.map(event => event.seq), [0, 1], 'read-only fallback must stop at the last complete turn before a seq gap')
+assert.equal(READ_ONLY_HISTORY_EVENT, 'deployment/read-only-history')
 
 const packedHistory = packChunkRuns([
   { type: 'assistant/chunk', seq: 0, time: 10, data: { turn: 0, step: 0, chunk: { type: 'text-delta', text: 'a' } } },

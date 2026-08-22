@@ -16,5 +16,5 @@
     "composite": true,
     "skipLibCheck": true
   },
-  "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.d.ts", "tests/**/*.ts", "tests/**/*.tsx"]
+  "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.d.ts", "tests/**/*.client.spec.ts", "tests/**/*.client.spec.tsx", "tests/storage.ts"]
 }

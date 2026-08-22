@@ -1,3 +1,38 @@
+.dsh-readonly-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--dsw-alias-state-warn-border);
+  border-radius: 14px;
+  color: var(--dsw-alias-state-warn-label);
+  background: var(--dsw-alias-bg-module-platform);
+  font: var(--dsw-font-xxs-12);
+  white-space: nowrap;
+}
+
+html[data-dsh-readonly-session] [data-composer-card] {
+  opacity: 0.72;
+}
+
+html[data-dsh-readonly-session] [data-composer-card] button:disabled {
+  cursor: not-allowed;
+}
+
+button[data-dsh-chat-load-all-locked] {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.dsh-chat-load-all-button {
+  margin-left: 8px;
+}
+
+.dsh-chat-load-all-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .dsh-process-visibility-switch {
   display: inline-flex;
   flex: none;
@@ -110,6 +145,10 @@
 .dsh-chat-notification-button[aria-checked='true'] {
   color: var(--dsw-alias-state-warn-label);
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.dsh-chat-notification-button__icon {
+  display: block;
 }
 
 .dsh-chat-notification-button:disabled {

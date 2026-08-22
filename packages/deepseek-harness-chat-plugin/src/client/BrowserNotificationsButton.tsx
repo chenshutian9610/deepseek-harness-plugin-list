@@ -46,7 +46,21 @@ export function BrowserNotificationsButton({ t }: BrowserNotificationsButtonProp
         else void enableBrowserNotifications()
       }}
     >
-      <span aria-hidden="true">{enabled ? '🔔' : '🔕'}</span>
+      <svg
+        className="dsh-chat-notification-button__icon"
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        fill={enabled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+        <path d="M10 21h4" />
+      </svg>
     </button>
   )
 }

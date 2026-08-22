@@ -14,6 +14,10 @@ export type ProcessVisibilityKey =
   | 'notification.enable'
   | 'notification.disable'
   | 'notification.unsupported'
+  | 'readonly.badge'
+  | 'readonly.composer'
+  | 'history.loadAll'
+  | 'history.loadingAll'
 
 /** Simplified Chinese dictionary. */
 export const zh: Record<ProcessVisibilityKey, string> = {
@@ -28,6 +32,10 @@ export const zh: Record<ProcessVisibilityKey, string> = {
   'notification.enable': '开启 AI 回复完成浏览器通知',
   'notification.disable': '关闭 AI 回复完成浏览器通知',
   'notification.unsupported': '当前浏览器或非安全来源不支持系统通知',
+  'readonly.badge': '只读',
+  'readonly.composer': '会话日志已损坏，仅可查看历史记录',
+  'history.loadAll': '加载全部',
+  'history.loadingAll': '正在加载全部…',
 }
 
 /** English dictionary. */
@@ -43,4 +51,8 @@ export const en: Record<ProcessVisibilityKey, string> = {
   'notification.enable': 'Enable browser notifications for completed AI replies',
   'notification.disable': 'Disable browser notifications for completed AI replies',
   'notification.unsupported': 'System notifications require browser support and a secure origin',
+  'readonly.badge': 'Read-only',
+  'readonly.composer': 'The session log is damaged; history is read-only',
+  'history.loadAll': 'Load all',
+  'history.loadingAll': 'Loading all…',
 }

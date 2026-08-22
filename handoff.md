@@ -27,12 +27,15 @@
 - `deepseek-harness-web` 已整体升级到官方 `0.1.0-rc.8`，同步 rc.8 Web renderer、brand、attachment、reference 与 preset 组合。原 `packages/deepseek-harness-mcp-plugin` 已删除并迁入 `packages/deepseek-harness-web/project-mcp`；内置 fork 基于官方 `@deepseek-ai/dsh-mcp-client@0.1.0-rc.8` / commit `141eb6fef83422698aef7a981029e843e8161534`，仅将 `serverName` 占用范围改为 `ctx.agent ?? ctx.root`，同时由 Web wrapper 显式持有并清理每个 Agent 的 MCP child Fibers。Profile loader 会忽略遗留的 `dsh-project-mcp` bundle 层，避免旧 profile 与内置行产生重复 `project-mcp` loader id，但不会自动改写用户 profile manifest。
 
 - `packages/deepseek-harness-chat-plugin` 为每条已完成的 AI 回复新增“回到回复开头”按钮，通过官方 `conversation.chat.assistant-actions` slot 挂载，点击后按回复 `messageId` 定位对应 Assistant 行并在会话滚动容器内平滑回到第一行；已在 3081 实例验证。
+- `packages/deepseek-harness-chat-plugin` 在原生“加载更早”旁新增“加载全部”：逐页触发原生分页，保留宿主的每页 50 条、连续性检查和滚动锚点恢复；会话切换、分页无进展、单页超时或插件卸载时停止，不新增 Host RPC 或日志格式。已修复同步按钮文案时无条件写入 `textContent` 触发 `MutationObserver` 微任务死循环、导致页面卡死的问题。
 - `packages/deepseek-harness-chat-plugin` 新增全局快捷键：`Cmd/Ctrl + Shift + O` 进入新会话；`Cmd/Ctrl + K` 打开会话内容搜索弹窗，可用空格分隔关键词进行跨消息 AND 模糊匹配，支持全拼和拼音首字母，并可用方向键选择、回车或鼠标双击进入结果会话。插件 Host 通过 `sessionQuery.filterEvents()` 提供独立的同源搜索路由，不依赖 SQLite FTS；`packages/deepseek-harness-web/cordis.yml` 的 `session-query-sqlite.openAt: first-search` 仍供宿主原生搜索使用。
 - `packages/deepseek-harness-chat-plugin` 新增浏览器本地对话收藏，并把侧栏改为“工作区／收藏”双 Tab：工作区 Tab 保留宿主 WorkspaceBrowser，收藏 Tab 平铺收藏会话、显示所属工作区并可直接打开；收藏与 Tab 选择均持久化到 `localStorage`，不修改宿主会话数据和排序。
 - 已在该插件目录运行 `pnpm run check`，类型检查、5 个测试文件（6 个测试）和生产构建均通过；并在 `http://127.0.0.1:3081` 验证收藏切换、双 Tab、会话打开、刷新恢复及侧栏收起／展开均正常；切换收藏前后 Tab 组横向位移为 0。
 - 当前 `http://127.0.0.1:3080` 是另一套未加载本地插件的旧 Web 进程；本仓库 `start_lan.sh` 启动的实例在 3081。
 
 ## 验证
+
+“加载全部”改动此前已在 `packages/deepseek-harness-chat-plugin` 运行完整 `pnpm run check`：Host/Client TypeScript 检查、8 个 Vitest 文件 / 11 个测试以及 Host/Client 生产构建全部通过。页面卡死修复后运行 `pnpm exec vitest run tests/load-all-history.client.spec.ts`，3 个测试通过，并运行 `pnpm run build` 重新生成 `lib/client.js`；此前仅修改源码未构建，导致重启后仍加载含死循环的旧 bundle。当前未运行 `pnpm run dev:web` watcher，也未再次重启 3081 服务。
 
 Web rc.8 + 内置 MCP 迁移已通过 `npm run check`、全新 `npm ci --omit=dev`、生产依赖树检查、预构建 MCP 模块导入、`npm pack --dry-run` 内容检查，以及隔离 `DSH_HOME` 的 31987 启动／关闭验证。`agent-browser` 在 390×844 完成无 Key onboarding 并进入 rc.8 App shell，页面、body 与 viewport 宽度均为 390，无横向溢出；未发送模型请求，未使用 `playwright-cli`。另使用仍包含旧 `dsh-project-mcp` bundle 的真实 Web profile 运行 `sh start_lan.sh`，3081 启动成功且 loopback HTTP 返回 200。
 

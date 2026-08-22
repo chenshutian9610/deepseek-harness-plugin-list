@@ -9,10 +9,12 @@
 - 标题栏星标可收藏／取消收藏当前对话；工作区 Tab 的对话行悬停时也会显示星标按钮，收藏后金色实心星会常驻显示。
 - 收藏状态仅保存在当前浏览器 `localStorage`，刷新页面或重启 Web 后仍会保留。
 - 每条已完成的 AI 回复底部提供“回到回复开头”按钮，长回复读到底部后可直接平滑滚回该条回复的第一行。
+- 历史超过一页时，在原生“加载更早”旁增加“加载全部”；点击后复用原生分页与滚动锚点，逐页加载到最早记录，超长会话可能需要等待一段时间。
 - AI 回复结束时，如果该会话不是当前正在查看的会话，对话行会显示红点。
-- 会话标题栏提供浏览器通知开关；首次开启会请求权限。页面在后台或失去焦点时，任意 AI 回复完成都会发送系统通知，点击通知会聚焦页面并打开对应会话。开关保存在当前浏览器；普通 HTTP 的非回环局域网来源因浏览器安全限制不可用。
+- 会话标题栏提供浏览器通知开关；首次开启会请求权限并注册当前 context path 下的 Service Worker。页面在后台或失去焦点时，任意 AI 回复完成都会通过 `showNotification()` 发送系统通知，点击通知会聚焦或打开页面并进入对应会话。开关保存在当前浏览器；Android Chrome 与已安装到主屏幕的 iOS/iPadOS PWA 可使用，普通 HTTP 的非回环局域网来源因浏览器安全限制不可用。
 - 浏览器标签页图标按“任意会话运行中 > 存在未读 > 普通”显示：运行中叠加蓝色省略号，没有运行中会话但存在可见未读时叠加红点，否则恢复原始图标。
 - 工作区行会显示该目录下未读完成对话的红色数量；数字采用紧凑的 14px 徽标，打开对应对话后自动递减，归零后消失。
+- Host 标记为 `readOnlyHistory` 的损坏日志会话在标题栏显示“只读”；聊天框、命令、模式、模型选择和发送按钮全部禁用，历史仍可滚动查看。
 - 新会话默认隐藏过程详情；已有会话继续使用各自已保存的偏好。
 - 隐藏时不显示完整过程卡片，但运行期间会保留一条不可展开的最新过程摘要，以 loading 圆环提示当前正在执行的工具、思考或其他内部步骤；工具仍会执行，所有事件仍会写入会话日志，普通用户消息、用户指令、助手正文和错误保持可见。
 - 开启后会立即显示聊天中的工具调用、Think／reasoning、上下文注入、压缩／重试和工作流运行等已有内部过程内容，不需要重新加载会话。
@@ -38,9 +40,9 @@ dsh plugin --profile web remove dsh-chat-process-visibility
 
 ## 实现
 
-Host 半注册同源 `/api/chat.session-search` 路由，通过 `ctx.sessionQuery.filterEvents()` 读取 Harness 的语义会话文本，并使用 `pinyin-pro` 建立按会话缓存的规范文本／全拼／首字母索引；空格关键词可在同一会话的不同事件中分别命中。缓存会在当前进程追加或释放 Session 时失效，单个损坏历史日志会被跳过，不会阻断其他会话搜索。浏览器半通过官方 `conversation.session.header.utilities` slot 注册过程详情和收藏控件，使用 Harness session-scoped `defineStore` 按会话持久化偏好，并给页面根节点同步 `data-dsh-process-details-hidden`。
+Host 半注册同源 `/api/chat.session-search` 路由，通过 `ctx.sessionQuery.filterEvents()` 读取 Harness 的语义会话文本，并使用 `pinyin-pro` 建立按会话缓存的规范文本／全拼／首字母索引；空格关键词可在同一会话的不同事件中分别命中。缓存会在当前进程追加或释放 Session 时失效，单个损坏历史日志会被跳过，不会阻断其他会话搜索。Host 同时提供 `/chat-notifications-sw.js`，由 Web context-path 层自动挂载到实际应用前缀；浏览器按 `document.baseURI` 注册与应用同 scope 的 Service Worker。浏览器半通过官方 `conversation.session.header.utilities` slot 注册只读状态、过程详情、收藏和通知控件，使用 Harness session-scoped `defineStore` 按会话持久化偏好，并给页面根节点同步 `data-dsh-process-details-hidden`。只读状态读取 Host 的 `readOnlyHistory` projection，通过官方 `conversation.blocks` 让输入框失效，并对 composer 内所有按钮追加禁用围栏，确保模型选择也不可操作。
 
-新会话快捷键调用 Harness 的 `workspaces.startSession()`；搜索弹窗使用浏览器原生 `<dialog>` 请求插件 Host 路由，并以 `sessions.open()` 导航结果会话。回复回顶按钮通过官方 `conversation.chat.assistant-actions` slot 注册，按 `messageId` 从当前会话快照定位对应 `assistant-step`，再滚动宿主 `[data-conversation-scroll]`。
+新会话快捷键调用 Harness 的 `workspaces.startSession()`；搜索弹窗使用浏览器原生 `<dialog>` 请求插件 Host 路由，并以 `sessions.open()` 导航结果会话。回复回顶按钮通过官方 `conversation.chat.assistant-actions` slot 注册，按 `messageId` 从当前会话快照定位对应 `assistant-step`，再滚动宿主 `[data-conversation-scroll]`。rc.8 暂未提供历史分页按钮扩展 slot，因此“加载全部”通过 `[data-chat-flow]` 中原生分页按钮的语义结构幂等挂载，并逐次触发原生“加载更早”，从而保留其每页 50 条、连续性检查和阅读位置恢复；会话切换、无进展、超时或插件卸载都会终止循环。
 
 收藏状态按会话持久化到 `dsh.chat.favoriteSessions.v1.<sessionId>`，侧栏 Tab 选择保存在 `dsh.chat.sidebarTab.v1`。rc.6 没有 Session 行附加控件或 WorkspaceBrowser 内部 Tab slot，因此标题栏使用官方 slot，侧栏通过 `[data-slot='sidebar.workspaces']` 下的语义结构幂等挂载 Tab、收藏列表和星标按钮；工作区 Tab 仍直接使用宿主 WorkspaceBrowser，不修改会话数据或宿主排序。
 
