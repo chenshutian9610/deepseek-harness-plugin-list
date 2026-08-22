@@ -4,5 +4,8 @@ module.exports = {
     cwd: __dirname,
     script: './bin.mjs',
     args: '--port 3081 --host 0.0.0.0 --allow-remote-settings',
+    env: {
+      DSH_LOCAL_PLUGINS_DIR: '..',
+    },
   }],
 }
