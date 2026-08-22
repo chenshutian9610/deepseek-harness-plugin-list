@@ -23,7 +23,20 @@ const distDir = join(root, 'dist')
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 const webManifest = readJson(join(webDir, 'package.json'))
-const target = `${process.platform}-${process.arch}`
+const supportedTargets = new Set([
+  'darwin-arm64',
+  'darwin-x64',
+  'linux-arm64',
+  'linux-x64',
+  'win32-arm64',
+  'win32-x64',
+])
+const targetArgument = process.argv.find(argument => argument.startsWith('--target='))?.slice('--target='.length)
+const target = targetArgument ?? `${process.platform}-${process.arch}`
+if (!supportedTargets.has(target)) {
+  throw new Error(`unsupported distribution target: ${target}`)
+}
+const [targetPlatform, targetArch] = target.split('-')
 const artifactName = `${webManifest.name}-${webManifest.version}-${target}`
 const stagingDir = join(distDir, `.${artifactName}-${process.pid}`)
 const packsDir = join(distDir, `.packs-${process.pid}`)
@@ -133,7 +146,12 @@ function pruneNodePty() {
   for (const entry of ['binding.gyp', 'scripts', 'src', 'third_party', 'typings']) {
     rmSync(join(nodePty, entry), { recursive: true, force: true })
   }
-  if (process.platform === 'win32') removeFilesByExtension(current, '.pdb')
+  if (targetPlatform === 'darwin') {
+    const helper = join(current, 'spawn-helper')
+    if (!existsSync(helper)) throw new Error(`node-pty has no spawn helper for ${target}`)
+    chmodSync(helper, 0o755)
+  }
+  if (targetPlatform === 'win32') removeFilesByExtension(current, '.pdb')
 }
 
 function removeFilesByExtension(dir, extension) {
@@ -145,7 +163,7 @@ function removeFilesByExtension(dir, extension) {
 }
 
 // Reject source-tree links and load all native/plugin entry points before archiving.
-function assertPortable(dir, pluginNames) {
+function assertPortable(dir, pluginNames, validateNativeModules) {
   for (const name of pluginNames) {
     const pluginDir = join(dir, 'node_modules', name)
     if (lstatSync(pluginDir).isSymbolicLink()) throw new Error(`plugin package is still linked: ${name}`)
@@ -170,7 +188,7 @@ function assertPortable(dir, pluginNames) {
   }
   visit(dir)
 
-  run(process.execPath, ['-e', "require('node-pty')"], dir)
+  if (validateNativeModules) run(process.execPath, ['-e', "require('node-pty')"], dir)
   run(process.execPath, [
     '--input-type=module',
     '-e',
@@ -207,7 +225,16 @@ try {
     copy(join(webDir, entry), join(stagingDir, entry))
   }
 
-  run(npm, ['ci', '--omit=dev', '--include=optional', '--no-audit', '--no-fund'], stagingDir)
+  run(npm, [
+    'ci',
+    '--omit=dev',
+    '--include=optional',
+    '--ignore-scripts',
+    '--no-audit',
+    '--no-fund',
+    `--os=${targetPlatform}`,
+    `--cpu=${targetArch}`,
+  ], stagingDir)
   for (const plugin of plugins) installPlugin(plugin, pluginArchives.get(plugin.manifest.name))
 
   materializeLanAuth()
@@ -223,8 +250,10 @@ exec node "$APP_DIR/bin.mjs" "$@"
   chmodSync(join(stagingDir, 'start.sh'), 0o755)
   writeFileSync(join(stagingDir, 'start.cmd'), `@echo off\r\nset "APP_DIR=%~dp0"\r\ncd /d "%APP_DIR%"\r\nset "DSH_LOCAL_PLUGINS_DIR=%APP_DIR%node_modules"\r\nnode "%APP_DIR%bin.mjs" %*\r\n`)
 
-  assertPortable(stagingDir, plugins.map(plugin => plugin.manifest.name))
-  run(process.execPath, ['./check.mjs'], stagingDir)
+  const nativeTargetMatchesHost = target === `${process.platform}-${process.arch}`
+  assertPortable(stagingDir, plugins.map(plugin => plugin.manifest.name), nativeTargetMatchesHost)
+  if (nativeTargetMatchesHost) run(process.execPath, ['./check.mjs'], stagingDir)
+  else console.log(`\n==> 跳过 ${target} 的本机原生模块运行检查`)
 
   rmSync(outputDir, { recursive: true, force: true })
   rmSync(archivePath, { force: true })
